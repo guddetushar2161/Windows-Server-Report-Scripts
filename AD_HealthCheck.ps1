@@ -138,20 +138,23 @@ try {
     $domain  = Get-ADDomain -ErrorAction Stop
     $forest  = Get-ADForest  -ErrorAction Stop
 
+    $domainsInForest = if ($forest.Domains) { (@($forest.Domains) -join ', ') } else { 'N/A' }
+    $sitesInForest   = if ($forest.Sites)   { (@($forest.Sites)   -join ', ') } else { 'N/A' }
+
     $rows = @(
-        @('Domain Name',            (HtmlEncode $domain.DNSRoot))
-        @('NetBIOS Name',           (HtmlEncode $domain.NetBIOSName))
-        @('Domain DN',              (HtmlEncode $domain.DistinguishedName))
-        @('Forest Name',            (HtmlEncode $forest.Name))
-        @('Forest Functional Level',(HtmlEncode (ConvertADMode ([string]$forest.ForestMode))))
-        @('Domain Functional Level',(HtmlEncode (ConvertADMode ([string]$domain.DomainMode))))
-        @('PDC Emulator',           (HtmlEncode ([string]$domain.PDCEmulator)))
-        @('RID Master',             (HtmlEncode ([string]$domain.RIDMaster)))
-        @('Infrastructure Master',  (HtmlEncode ([string]$domain.InfrastructureMaster)))
-        @('Schema Master',          (HtmlEncode ([string]$forest.SchemaMaster)))
-        @('Domain Naming Master',   (HtmlEncode ([string]$forest.DomainNamingMaster)))
-        @('Domains in Forest',      (HtmlEncode (if ($forest.Domains) { @($forest.Domains) -join ', ' } else { 'N/A' })))
-        @('Sites',                  (HtmlEncode (if ($forest.Sites)   { @($forest.Sites)   -join ', ' } else { 'N/A' })))
+        @('Domain Name',            (HtmlEncode $domain.DNSRoot)),
+        @('NetBIOS Name',           (HtmlEncode $domain.NetBIOSName)),
+        @('Domain DN',              (HtmlEncode $domain.DistinguishedName)),
+        @('Forest Name',            (HtmlEncode $forest.Name)),
+        @('Forest Functional Level',(HtmlEncode (ConvertADMode ([string]$forest.ForestMode)))),
+        @('Domain Functional Level',(HtmlEncode (ConvertADMode ([string]$domain.DomainMode)))),
+        @('PDC Emulator',           (HtmlEncode ([string]$domain.PDCEmulator))),
+        @('RID Master',             (HtmlEncode ([string]$domain.RIDMaster))),
+        @('Infrastructure Master',  (HtmlEncode ([string]$domain.InfrastructureMaster))),
+        @('Schema Master',          (HtmlEncode ([string]$forest.SchemaMaster))),
+        @('Domain Naming Master',   (HtmlEncode ([string]$forest.DomainNamingMaster))),
+        @('Domains in Forest',      (HtmlEncode $domainsInForest)),
+        @('Sites',                  (HtmlEncode $sitesInForest))
     )
 
     $rowsHtml = ($rows | ForEach-Object {
@@ -180,8 +183,8 @@ $WarnDCs    = 0
 $CritDCs    = 0
 try {
     if (-not $ADModuleAvailable) { throw "ActiveDirectory module not available." }
-    $AllDCs = Get-ADDomainController -Filter * -ErrorAction Stop | Sort-Object Name
-    $DCCount = [int]$AllDCs.Count
+    $AllDCs = @(Get-ADDomainController -Filter * -ErrorAction Stop | Sort-Object Name)
+    $DCCount = $AllDCs.Count
 
     $rows = foreach ($dc in $AllDCs) {
         $ip  = if ($dc.IPv4Address) { HtmlEncode $dc.IPv4Address } else { '<em>N/A</em>' }
@@ -226,15 +229,15 @@ try {
             try {
                 $s = Get-Service -ComputerName $dcName -Name $svc -ErrorAction SilentlyContinue
                 if ($null -eq $s) {
-                    StatusBadge 'N/A' 'grey'
+                    "<td>$(StatusBadge 'N/A' 'grey')</td>"
                 } elseif ($s.Status -eq 'Running') {
-                    StatusBadge 'Running' 'green'
+                    "<td>$(StatusBadge 'Running' 'green')</td>"
                 } else {
                     $CriticalFindings.Add("Section 3  -  DC $dcName service $svc is $($s.Status)")
-                    StatusBadge $s.Status.ToString() 'red'
+                    "<td>$(StatusBadge $s.Status.ToString() 'red')</td>"
                 }
             } catch {
-                StatusBadge 'Error' 'red'
+                "<td>$(StatusBadge 'Error' 'red')</td>"
             }
         }
         "<tr><td><strong>$(HtmlEncode $dcName)</strong></td>$($cols -join '')</tr>"
@@ -574,15 +577,15 @@ try {
     $pp = Get-ADDefaultDomainPasswordPolicy -ErrorAction Stop
 
     $rows = @(
-        @('Min Password Length',    (HtmlEncode $pp.MinPasswordLength.ToString()))
-        @('Complexity Enabled',     (HtmlEncode $pp.ComplexityEnabled.ToString()))
-        @('Lockout Threshold',      (HtmlEncode $pp.LockoutThreshold.ToString()))
-        @('Lockout Duration',       (HtmlEncode $pp.LockoutDuration.ToString()))
-        @('Lockout Observation Window', (HtmlEncode $pp.LockoutObservationWindow.ToString()))
-        @('Max Password Age',       (HtmlEncode $pp.MaxPasswordAge.ToString()))
-        @('Min Password Age',       (HtmlEncode $pp.MinPasswordAge.ToString()))
-        @('Password History Count', (HtmlEncode $pp.PasswordHistoryCount.ToString()))
-        @('Reversible Encryption',  (HtmlEncode $pp.ReversibleEncryptionEnabled.ToString()))
+        @('Min Password Length',        (HtmlEncode $pp.MinPasswordLength.ToString())),
+        @('Complexity Enabled',         (HtmlEncode $pp.ComplexityEnabled.ToString())),
+        @('Lockout Threshold',          (HtmlEncode $pp.LockoutThreshold.ToString())),
+        @('Lockout Duration',           (HtmlEncode $pp.LockoutDuration.ToString())),
+        @('Lockout Observation Window', (HtmlEncode $pp.LockoutObservationWindow.ToString())),
+        @('Max Password Age',           (HtmlEncode $pp.MaxPasswordAge.ToString())),
+        @('Min Password Age',           (HtmlEncode $pp.MinPasswordAge.ToString())),
+        @('Password History Count',     (HtmlEncode $pp.PasswordHistoryCount.ToString())),
+        @('Reversible Encryption',      (HtmlEncode $pp.ReversibleEncryptionEnabled.ToString()))
     )
     $rowsHtml = ($rows | ForEach-Object { "<tr><td class='td-label'>$($_[0])</td><td>$($_[1])</td></tr>" }) -join ''
 
@@ -915,6 +918,12 @@ $EndTime     = Get-Date
 $Duration    = ($EndTime - $StartTime).ToString('hh\:mm\:ss')
 $ReportDate  = $EndTime.ToString('dddd, dd MMMM yyyy HH:mm:ss')
 
+$AuthorLink = if (-not [string]::IsNullOrWhiteSpace($CompanyWebsite)) {
+    "<a href='$(HtmlEncode $CompanyWebsite)' target='_blank' style='color:var(--link);'>$(HtmlEncode $AuthorName)</a>"
+} else {
+    HtmlEncode $AuthorName
+}
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # BUILD FULL HTML
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -1145,7 +1154,7 @@ $(BuildSection 14 'Windows Update Status'          $Sec14Html ($Sec14Html -match
     Generated: $(HtmlEncode $ReportDate) &nbsp;|&nbsp;
     Duration: $(HtmlEncode $Duration)
   </div>
-  <div>Created by $(HtmlEncode $AuthorName)</div>
+  <div>Created by $AuthorLink</div>
 </div>
 
 </div><!-- end page-wrap -->
