@@ -1,4 +1,4 @@
-#Requires -Version 5.1
+﻿#Requires -Version 5.1
 <#
 .SYNOPSIS
     Comprehensive Active Directory Health Check Script
@@ -104,13 +104,13 @@ try {
 }
 
 Write-Host ""
-Write-Host "╔══════════════════════════════════════════════════════════════╗" -ForegroundColor DarkCyan
-Write-Host "║        Active Directory Health Check  v$ScriptVersion              ║" -ForegroundColor DarkCyan
-Write-Host "╚══════════════════════════════════════════════════════════════╝" -ForegroundColor DarkCyan
+Write-Host "+==============================================================+" -ForegroundColor DarkCyan
+Write-Host "|        Active Directory Health Check  v$ScriptVersion              |" -ForegroundColor DarkCyan
+Write-Host "+==============================================================+" -ForegroundColor DarkCyan
 Write-Host ""
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# SECTION 1 – DOMAIN & FOREST INFO
+# SECTION 1  -  DOMAIN & FOREST INFO
 # ═══════════════════════════════════════════════════════════════════════════════
 Write-Progress2 "Section 1: Gathering Domain & Forest Info..."
 $Sec1Html = ''
@@ -146,11 +146,11 @@ try {
 "@
 } catch {
     $Sec1Html = "<p class='error'>Error retrieving Domain/Forest info: $(HtmlEncode $_.Exception.Message)</p>"
-    $CriticalFindings.Add("Section 1 – Domain/Forest Info error: $($_.Exception.Message)")
+    $CriticalFindings.Add("Section 1  -  Domain/Forest Info error: $($_.Exception.Message)")
 }
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# SECTION 2 – DOMAIN CONTROLLER INVENTORY
+# SECTION 2  -  DOMAIN CONTROLLER INVENTORY
 # ═══════════════════════════════════════════════════════════════════════════════
 Write-Progress2 "Section 2: Domain Controller Inventory..."
 $Sec2Html   = ''
@@ -188,11 +188,11 @@ try {
 "@
 } catch {
     $Sec2Html = "<p class='error'>Error retrieving DC Inventory: $(HtmlEncode $_.Exception.Message)</p>"
-    $CriticalFindings.Add("Section 2 – DC Inventory error: $($_.Exception.Message)")
+    $CriticalFindings.Add("Section 2  -  DC Inventory error: $($_.Exception.Message)")
 }
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# SECTION 3 – AD SERVICES STATUS PER DC
+# SECTION 3  -  AD SERVICES STATUS PER DC
 # ═══════════════════════════════════════════════════════════════════════════════
 Write-Progress2 "Section 3: AD Services Status per DC..."
 $Sec3Html     = ''
@@ -211,7 +211,7 @@ try {
                 } elseif ($s.Status -eq 'Running') {
                     StatusBadge 'Running' 'green'
                 } else {
-                    $CriticalFindings.Add("Section 3 – DC $dcName service $svc is $($s.Status)")
+                    $CriticalFindings.Add("Section 3  -  DC $dcName service $svc is $($s.Status)")
                     StatusBadge $s.Status.ToString() 'red'
                 }
             } catch {
@@ -231,11 +231,11 @@ try {
 "@
 } catch {
     $Sec3Html = "<p class='error'>Error checking AD Services: $(HtmlEncode $_.Exception.Message)</p>"
-    $CriticalFindings.Add("Section 3 – AD Services error: $($_.Exception.Message)")
+    $CriticalFindings.Add("Section 3  -  AD Services error: $($_.Exception.Message)")
 }
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# SECTION 4 – REPLICATION HEALTH
+# SECTION 4  -  REPLICATION HEALTH
 # ═══════════════════════════════════════════════════════════════════════════════
 Write-Progress2 "Section 4: Replication Health..."
 $Sec4Html = ''
@@ -254,7 +254,7 @@ try {
 
     # Detect failures
     $hasFailures = ($replSummaryText -match 'fail|error' -or $replShowText -match 'fail|error')
-    if ($hasFailures) { $CriticalFindings.Add("Section 4 – Replication failures detected by repadmin.") }
+    if ($hasFailures) { $CriticalFindings.Add("Section 4  -  Replication failures detected by repadmin.") }
 
     $summaryEncoded = HtmlEncode $replSummaryText
     $showreplEncoded = HtmlEncode $replShowText
@@ -279,11 +279,11 @@ try {
 "@
 } catch {
     $Sec4Html = "<p class='error'>Error running repadmin: $(HtmlEncode $_.Exception.Message)</p>"
-    $CriticalFindings.Add("Section 4 – Replication check error: $($_.Exception.Message)")
+    $CriticalFindings.Add("Section 4  -  Replication check error: $($_.Exception.Message)")
 }
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# SECTION 5 – SYSVOL & NETLOGON SHARE
+# SECTION 5  -  SYSVOL & NETLOGON SHARE
 # ═══════════════════════════════════════════════════════════════════════════════
 Write-Progress2 "Section 5: SYSVOL & Netlogon Share..."
 $Sec5Html = ''
@@ -300,7 +300,7 @@ try {
                     $badge = StatusBadge 'Accessible' 'green'
                 } else {
                     $badge = StatusBadge 'Not Accessible' 'red'
-                    $CriticalFindings.Add("Section 5 – $path is not accessible.")
+                    $CriticalFindings.Add("Section 5  -  $path is not accessible.")
                 }
             } catch {
                 $badge = StatusBadge 'Error' 'red'
@@ -319,11 +319,11 @@ try {
 "@
 } catch {
     $Sec5Html = "<p class='error'>Error checking SYSVOL/NETLOGON: $(HtmlEncode $_.Exception.Message)</p>"
-    $CriticalFindings.Add("Section 5 – SYSVOL/NETLOGON error: $($_.Exception.Message)")
+    $CriticalFindings.Add("Section 5  -  SYSVOL/NETLOGON error: $($_.Exception.Message)")
 }
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# SECTION 6 – DNS HEALTH
+# SECTION 6  -  DNS HEALTH
 # ═══════════════════════════════════════════════════════════════════════════════
 Write-Progress2 "Section 6: DNS Health..."
 $Sec6Html = ''
@@ -339,7 +339,7 @@ try {
         $srvResult = StatusBadge 'Resolved' 'green'
     } catch {
         $srvResult = StatusBadge 'Failed' 'red'
-        $CriticalFindings.Add("Section 6 – DNS SRV record $srvRecord could not be resolved.")
+        $CriticalFindings.Add("Section 6  -  DNS SRV record $srvRecord could not be resolved.")
     }
 
     # DNS Zones
@@ -390,11 +390,11 @@ $forwardersHtml
 "@
 } catch {
     $Sec6Html = "<p class='error'>Error checking DNS Health: $(HtmlEncode $_.Exception.Message)</p>"
-    $CriticalFindings.Add("Section 6 – DNS Health error: $($_.Exception.Message)")
+    $CriticalFindings.Add("Section 6  -  DNS Health error: $($_.Exception.Message)")
 }
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# SECTION 7 – FSMO ROLE HOLDERS
+# SECTION 7  -  FSMO ROLE HOLDERS
 # ═══════════════════════════════════════════════════════════════════════════════
 Write-Progress2 "Section 7: FSMO Role Holders..."
 $Sec7Html = ''
@@ -418,7 +418,7 @@ try {
             $reachable = Test-Connection -ComputerName $holder -Count 1 -Quiet -ErrorAction SilentlyContinue
         } catch {}
         $badge = if ($reachable) { StatusBadge 'Reachable' 'green' } else {
-            $CriticalFindings.Add("Section 7 – FSMO $($r.Role) holder $holder is unreachable.")
+            $CriticalFindings.Add("Section 7  -  FSMO $($r.Role) holder $holder is unreachable.")
             StatusBadge 'Unreachable' 'red'
         }
         "<tr><td>$(HtmlEncode $r.Role)</td><td>$(HtmlEncode $holder)</td><td>$badge</td></tr>"
@@ -434,11 +434,11 @@ try {
 "@
 } catch {
     $Sec7Html = "<p class='error'>Error checking FSMO Roles: $(HtmlEncode $_.Exception.Message)</p>"
-    $CriticalFindings.Add("Section 7 – FSMO check error: $($_.Exception.Message)")
+    $CriticalFindings.Add("Section 7  -  FSMO check error: $($_.Exception.Message)")
 }
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# SECTION 8 – AD TRUST RELATIONSHIPS
+# SECTION 8  -  AD TRUST RELATIONSHIPS
 # ═══════════════════════════════════════════════════════════════════════════════
 Write-Progress2 "Section 8: AD Trust Relationships..."
 $Sec8Html = ''
@@ -469,7 +469,7 @@ try {
 }
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# SECTION 9 – AD TOMBSTONE & RECYCLE BIN
+# SECTION 9  -  AD TOMBSTONE & RECYCLE BIN
 # ═══════════════════════════════════════════════════════════════════════════════
 Write-Progress2 "Section 9: Tombstone Lifetime & Recycle Bin..."
 $Sec9Html = ''
@@ -503,7 +503,7 @@ try {
 }
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# SECTION 10 – PRIVILEGED ACCOUNT AUDIT
+# SECTION 10  -  PRIVILEGED ACCOUNT AUDIT
 # ═══════════════════════════════════════════════════════════════════════════════
 Write-Progress2 "Section 10: Privileged Account Audit..."
 $Sec10Html = ''
@@ -546,7 +546,7 @@ try {
 }
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# SECTION 11 – PASSWORD POLICY
+# SECTION 11  -  PASSWORD POLICY
 # ═══════════════════════════════════════════════════════════════════════════════
 Write-Progress2 "Section 11: Default Domain Password Policy..."
 $Sec11Html = ''
@@ -573,7 +573,7 @@ try {
 }
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# SECTION 12 – STALE OBJECTS
+# SECTION 12  -  STALE OBJECTS
 # ═══════════════════════════════════════════════════════════════════════════════
 Write-Progress2 "Section 12: Stale Objects..."
 $Sec12Html = ''
@@ -618,16 +618,16 @@ try {
 }
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# SECTION 13 – DIRECTORY SERVICE EVENT LOG
+# SECTION 13  -  DIRECTORY SERVICE EVENT LOG
 # ═══════════════════════════════════════════════════════════════════════════════
 Write-Progress2 "Section 13: Directory Service Event Log..."
 $Sec13Html = ''
 
 # Map of known AD Event IDs to suggestions/impact
 $EventAdvisory = @{
-    1000 = @{ Impact = 'Critical'; Suggestion = 'AD DS stopped unexpectedly. Immediate investigation required – this may cause AD shutdown.' }
+    1000 = @{ Impact = 'Critical'; Suggestion = 'AD DS stopped unexpectedly. Immediate investigation required  -  this may cause AD shutdown.' }
     1084 = @{ Impact = 'Critical'; Suggestion = 'Replication failure. Check network connectivity and replication topology.' }
-    1308 = @{ Impact = 'Warning';  Suggestion = 'Replication warning – inconsistency detected. Monitor replication status.' }
+    1308 = @{ Impact = 'Warning';  Suggestion = 'Replication warning  -  inconsistency detected. Monitor replication status.' }
     1311 = @{ Impact = 'Critical'; Suggestion = 'Replication topology broken. Run repadmin /replsummary to investigate.' }
     1388 = @{ Impact = 'Critical'; Suggestion = 'Lingering objects detected. Run repadmin /removelingeringobjects.' }
     1925 = @{ Impact = 'Critical'; Suggestion = 'Could not establish replication link. Check DNS and network connectivity.' }
@@ -727,11 +727,11 @@ try {
     }
 } catch {
     $Sec13Html = "<p class='error'>Error reading Directory Service Event Log: $(HtmlEncode $_.Exception.Message)</p>"
-    $CriticalFindings.Add("Section 13 – Event Log error: $($_.Exception.Message)")
+    $CriticalFindings.Add("Section 13  -  Event Log error: $($_.Exception.Message)")
 }
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# SECTION 14 – WINDOWS UPDATE STATUS
+# SECTION 14  -  WINDOWS UPDATE STATUS
 # ═══════════════════════════════════════════════════════════════════════════════
 Write-Progress2 "Section 14: Windows Update Status..."
 $Sec14Html = ''
@@ -761,7 +761,7 @@ try {
             $hotfixRows.Add("<tr><td colspan='3'><em class='warn'>Could not retrieve hotfixes: $(HtmlEncode $_.Exception.Message)</em></td></tr>")
         }
 
-        # Pending updates via COM (Microsoft.Update.Session) – remote invocation via Invoke-Command
+        # Pending updates via COM (Microsoft.Update.Session)  -  remote invocation via Invoke-Command
         $pendingHtml = ''
         try {
             $pendingResult = Invoke-Command -ComputerName $dcName -ScriptBlock {
@@ -797,7 +797,7 @@ try {
                         default     { StatusBadge $u.Severity 'grey'   }
                     }
                     if ($u.Severity -in @('Critical','Important')) {
-                        $CriticalFindings.Add("Section 14 – DC $dcName has pending $($u.Severity) update: $($u.Title)")
+                        $CriticalFindings.Add("Section 14  -  DC $dcName has pending $($u.Severity) update: $($u.Title)")
                     }
                     "<tr><td>$(HtmlEncode $u.Title)</td><td>$sevBadge</td></tr>"
                 }
@@ -833,7 +833,7 @@ try {
     $Sec14Html = $allDCUpdateHtml -join ''
 } catch {
     $Sec14Html = "<p class='error'>Error checking Windows Update Status: $(HtmlEncode $_.Exception.Message)</p>"
-    $CriticalFindings.Add("Section 14 – Windows Update check error: $($_.Exception.Message)")
+    $CriticalFindings.Add("Section 14  -  Windows Update check error: $($_.Exception.Message)")
 }
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -909,7 +909,7 @@ $HtmlReport = @"
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AD Health Check Report – $(HtmlEncode $domainName)</title>
+<title>AD Health Check Report  -  $(HtmlEncode $domainName)</title>
 <style>
 /* ── CSS VARIABLES ── */
 :root {
@@ -1150,7 +1150,7 @@ function toggleTheme() {
 try {
     [System.IO.File]::WriteAllText($ReportFile, $HtmlReport, [System.Text.Encoding]::UTF8)
     Write-Host ""
-    Write-Host "  ✔ Report saved to: $ReportFile" -ForegroundColor Green
+    Write-Host "  [OK] Report saved to: $ReportFile" -ForegroundColor Green
 } catch {
     Write-Warning "Failed to write report: $_"
 }
@@ -1184,17 +1184,17 @@ if ($EnableEmailAlert -and $CriticalFindings.Count -gt 0) {
         }
 
         Send-MailMessage @mailParams
-        Write-Host "  ✔ Alert email sent to: $($SMTPTo -join ', ')" -ForegroundColor Green
+        Write-Host "  [OK] Alert email sent to: $($SMTPTo -join ', ')" -ForegroundColor Green
     } catch {
         Write-Warning "Failed to send alert email: $_"
     }
 } elseif ($EnableEmailAlert -and $CriticalFindings.Count -eq 0) {
-    Write-Progress2 "No critical findings — email alert skipped."
+    Write-Progress2 "No critical findings - email alert skipped."
 }
 
 Write-Host ""
-Write-Host "═══════════════════════════════════════════════════════════════" -ForegroundColor DarkCyan
+Write-Host "===============================================================" -ForegroundColor DarkCyan
 Write-Host "  AD Health Check complete.  Duration: $Duration" -ForegroundColor DarkCyan
 Write-Host "  Report: $ReportFile"                             -ForegroundColor Yellow
-Write-Host "═══════════════════════════════════════════════════════════════" -ForegroundColor DarkCyan
+Write-Host "===============================================================" -ForegroundColor DarkCyan
 Write-Host ""
