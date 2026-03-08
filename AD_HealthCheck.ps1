@@ -9,7 +9,7 @@
     dark/light-themed dashboard UI.
 
 .NOTES
-    Version    : 2.0.0
+    Version    : 2.1.0
     Author     : Tushar Gudde
     Requires   : PowerShell 5.1+, RSAT AD DS Tools (ActiveDirectory module)
     Permissions: Domain Admin or equivalent
@@ -35,7 +35,7 @@ $EnableStatusFile       = $true                  # Write a plain-text status sum
 # ──────────────────────────────────────────────────────────────────────────────
 # NOTE: For email notifications, run AD_HealthCheck_EmailAlert.ps1 after this script.
 
-$ScriptVersion  = '2.0.0'
+$ScriptVersion  = '2.1.0'
 $StartTime      = Get-Date
 $ScriptDir      = Split-Path -Parent $MyInvocation.MyCommand.Definition
 if ([string]::IsNullOrEmpty($ScriptDir)) { $ScriptDir = $PWD.Path }
@@ -683,21 +683,82 @@ try {
 # ═══════════════════════════════════════════════════════════════════════════════
 # SECTION 14  -  DIRECTORY SERVICE EVENT LOG
 # ═══════════════════════════════════════════════════════════════════════════════
-Write-Progress2 "Section 14: Directory Service Event Log..."
+Write-Progress2 "Section 14: System Event Log..."
 $Sec13Html = ''
 
-# Map of known AD Event IDs to suggestions/impact
+# ---------------------------------------------------------------------------
+# Advisory map: known Event IDs → Impact level + resolution suggestion.
+# Covers Directory Service, System (Service Control Manager, Disk, BugCheck,
+# Networking, NTP) and Application (VSS, WMI) event sources.
+# ---------------------------------------------------------------------------
 $EventAdvisory = @{
-    1000 = @{ Impact = 'Critical'; Suggestion = 'AD DS stopped unexpectedly. Immediate investigation required  -  this may cause AD shutdown.' }
-    1084 = @{ Impact = 'Critical'; Suggestion = 'Replication failure. Check network connectivity and replication topology.' }
-    1308 = @{ Impact = 'Warning';  Suggestion = 'Replication warning  -  inconsistency detected. Monitor replication status.' }
-    1311 = @{ Impact = 'Critical'; Suggestion = 'Replication topology broken. Run repadmin /replsummary to investigate.' }
-    1388 = @{ Impact = 'Critical'; Suggestion = 'Lingering objects detected. Run repadmin /removelingeringobjects.' }
-    1925 = @{ Impact = 'Critical'; Suggestion = 'Could not establish replication link. Check DNS and network connectivity.' }
-    2042 = @{ Impact = 'Critical'; Suggestion = 'Replication not occurred in tombstone lifetime. Immediate action required.' }
-    5807 = @{ Impact = 'Warning';  Suggestion = 'Netlogon detected no DC for a site. Check site links and DC availability.' }
-    5808 = @{ Impact = 'Warning';  Suggestion = 'Netlogon warning regarding DC locator. Review site and subnet configuration.' }
+    # ── Active Directory / Directory Service ──────────────────────────────
+    1000 = @{ Impact = 'Critical'; Suggestion = 'AD DS stopped unexpectedly. Immediate investigation required - this may indicate AD has shut down.' }
+    1084 = @{ Impact = 'Critical'; Suggestion = 'AD replication failure. Check network connectivity and replication topology (repadmin /replsummary).' }
+    1308 = @{ Impact = 'Warning';  Suggestion = 'AD replication inconsistency detected. Monitor replication status with repadmin /showrepl.' }
+    1311 = @{ Impact = 'Critical'; Suggestion = 'AD replication topology broken. Run repadmin /replsummary and check DNS SRV records.' }
+    1388 = @{ Impact = 'Critical'; Suggestion = 'Lingering objects detected. Run: repadmin /removelingeringobjects.' }
+    1925 = @{ Impact = 'Critical'; Suggestion = 'Could not establish AD replication link. Verify DNS and network connectivity between DCs.' }
+    2042 = @{ Impact = 'Critical'; Suggestion = 'Replication has not occurred within the tombstone lifetime. Immediate action required - consider authoritative restore.' }
+    5807 = @{ Impact = 'Warning';  Suggestion = 'Netlogon: no DC found for a site. Check site links, subnets, and DC availability.' }
+    5808 = @{ Impact = 'Warning';  Suggestion = 'Netlogon DC-locator warning. Review Active Directory Sites & Services subnet configuration.' }
+
+    # ── Service Control Manager (System log) ──────────────────────────────
+    7000 = @{ Impact = 'Error';    Suggestion = 'Service failed to start. Check the service account, dependencies, and the Application log for detail.' }
+    7001 = @{ Impact = 'Error';    Suggestion = 'Service dependency failed. Verify all prerequisite services are running.' }
+    7009 = @{ Impact = 'Warning';  Suggestion = 'Service start timed out. Check system performance; consider increasing the service timeout in the registry.' }
+    7011 = @{ Impact = 'Warning';  Suggestion = 'Service did not respond in time. Investigate service health; restart if necessary.' }
+    7022 = @{ Impact = 'Warning';  Suggestion = 'Service hung during start. Review the service log and restart the service.' }
+    7023 = @{ Impact = 'Error';    Suggestion = 'Service terminated with an error. Review event details and the Application log for error code context.' }
+    7024 = @{ Impact = 'Error';    Suggestion = 'Service terminated with a service-specific error. Check the service documentation for the error code.' }
+    7031 = @{ Impact = 'Error';    Suggestion = 'Service crashed and was restarted. Investigate root cause; repeated crashes may indicate a software defect.' }
+    7032 = @{ Impact = 'Warning';  Suggestion = 'Service restart was attempted. Monitor the service; schedule maintenance if restarts are frequent.' }
+    7034 = @{ Impact = 'Error';    Suggestion = 'Service terminated unexpectedly. Review Application/System logs and service event logs for details.' }
+    7035 = @{ Impact = 'Warning';  Suggestion = 'Service control request (start/stop) sent. Confirm this was intentional; audit if unexpected.' }
+    7036 = @{ Impact = 'Warning';  Suggestion = 'Service state changed. If a critical service stopped, start it immediately and investigate the cause.' }
+    7038 = @{ Impact = 'Error';    Suggestion = 'Service could not log on. Verify the service account password and permissions.' }
+    7040 = @{ Impact = 'Warning';  Suggestion = 'Service start type changed. Confirm this was intentional; revert if unauthorized.' }
+    7045 = @{ Impact = 'Warning';  Suggestion = 'A new service was installed. Verify this is an authorized installation; investigate if unexpected.' }
+
+    # ── Disk / Storage (System log) ───────────────────────────────────────
+    7  = @{ Impact = 'Critical'; Suggestion = 'Disk I/O error. Run chkdsk /f /r on the affected volume and check hardware health (SMART data).' }
+    11 = @{ Impact = 'Critical'; Suggestion = 'Disk controller error. Check cabling, disk health (SMART), and consider replacing the disk if errors persist.' }
+    15 = @{ Impact = 'Error';    Suggestion = 'Disk not ready. Ensure the disk is properly connected and not failing.' }
+    51 = @{ Impact = 'Warning';  Suggestion = 'Paging operation error. Run chkdsk and review disk health; consider adding RAM to reduce paging.' }
+    55 = @{ Impact = 'Critical'; Suggestion = 'NTFS filesystem corruption detected. Run chkdsk /f immediately and restore from backup if needed.' }
+    57 = @{ Impact = 'Critical'; Suggestion = 'NTFS failed to flush data. Potential data loss risk - run chkdsk and inspect disk hardware immediately.' }
+
+    # ── System / BugCheck ─────────────────────────────────────────────────
+    1001 = @{ Impact = 'Critical'; Suggestion = 'System crashed (BugCheck/BSOD). Analyze the dump file with WinDbg (!analyze -v). Check drivers and hardware.' }
+    6008 = @{ Impact = 'Critical'; Suggestion = 'Unexpected shutdown. Verify power supply, check for BugCheck events and hardware errors in event logs.' }
+    6009 = @{ Impact = 'Warning';  Suggestion = 'System version logged at boot. Normal if after maintenance; investigate if unexpected reboot.' }
+    41   = @{ Impact = 'Critical'; Suggestion = 'System rebooted without clean shutdown. Check for power issues, BugCheck events, or hardware failures.' }
+
+    # ── Network / DNS ─────────────────────────────────────────────────────
+    4015 = @{ Impact = 'Error';    Suggestion = 'DNS server critical error. Restart DNS Server service; check zone integrity with dnscmd /zoneprint.' }
+    4016 = @{ Impact = 'Warning';  Suggestion = 'DNS internal processing error. Review DNS debug log and check zone configuration.' }
+    5719 = @{ Impact = 'Critical'; Suggestion = 'No DC available to authenticate. Check DNS, network connectivity, and that the NetLogon service is running.' }
+    5783 = @{ Impact = 'Critical'; Suggestion = 'Netlogon could not locate a DC. Verify DNS SRV records: dcdiag /test:dns /v.' }
+
+    # ── Time Synchronization ──────────────────────────────────────────────
+    36 = @{ Impact = 'Warning';  Suggestion = 'W32tm time sync error. Run: w32tm /config /syncfromflags:domhier /update; w32tm /resync /force.' }
+    37 = @{ Impact = 'Warning';  Suggestion = 'Time-provider NtpClient: cannot reach time source. Check firewall rules for UDP 123 and NTP source reachability.' }
+    38 = @{ Impact = 'Warning';  Suggestion = 'NTP time provider did not receive a timely response. Verify NTP server availability and UDP 123 connectivity.' }
+
+    # ── VSS / Volume Shadow Copy ───────────────────────────────────────────
+    8193 = @{ Impact = 'Error';    Suggestion = 'VSS call failure. Check VSS writers (vssadmin list writers); restart VSS and affected writer services.' }
+    8194 = @{ Impact = 'Error';    Suggestion = 'VSS error accessing a provider. Run: vssadmin list providers; re-register VSS if needed.' }
+    12293= @{ Impact = 'Error';    Suggestion = 'VSS volume error. Ensure sufficient free space on the shadow copy storage volume.' }
+    12298= @{ Impact = 'Warning';  Suggestion = 'VSS pre-create snapshot failure. Verify disk space and that no VSS writer is in a failed state.' }
+
+    # ── WMI / Application ─────────────────────────────────────────────────
+    10 = @{ Impact = 'Warning';  Suggestion = 'WMI event filter activation error. Run: winmgmt /resetrepository or rebuild the WMI repository if persisting.' }
 }
+
+# Logs to scan on each DC: System catches service stops, hardware errors, etc.
+# Directory Service keeps the existing AD-specific coverage.
+# Application catches app crashes and VSS/WMI failures.
+$ScanLogs = @('System', 'Directory Service', 'Application')
 
 try {
     if ($AllDCs.Count -eq 0) { throw "No Domain Controllers found." }
@@ -708,13 +769,19 @@ try {
     foreach ($dc in $AllDCs) {
         $dcName = $dc.Name
         try {
-            $events = Get-WinEvent -ComputerName $dcName -FilterHashtable @{
-                LogName   = 'Directory Service'
-                StartTime = $eventSince
-                Level     = @(1, 2, 3)   # Critical=1, Error=2, Warning=3
-            } -ErrorAction SilentlyContinue
+            # Collect events from System, Directory Service, and Application logs per DC
+            $events = foreach ($log in $ScanLogs) {
+                Get-WinEvent -ComputerName $dcName -FilterHashtable @{
+                    LogName   = $log
+                    StartTime = $eventSince
+                    Level     = @(1, 2, 3)   # Critical=1, Error=2, Warning=3
+                } -ErrorAction SilentlyContinue
+            }
 
             if ($null -eq $events) { continue }
+
+            # Sort all events from all logs by time descending
+            $events = @($events) | Sort-Object TimeCreated -Descending
 
             foreach ($ev in $events) {
                 $level = switch ($ev.Level) {
@@ -724,21 +791,30 @@ try {
                     default { 'Info' }
                 }
 
-                # Use $ev.Message for human-readable text; encode and truncate
                 $rawMsg   = if ($ev.Message) { $ev.Message } else { "Event ID $($ev.Id)" }
                 $safeMsg  = HtmlEncode (TruncateMessage $rawMsg 500)
                 $safeTime = HtmlEncode $ev.TimeCreated.ToString('yyyy-MM-dd HH:mm:ss')
                 $safeId   = HtmlEncode $ev.Id.ToString()
                 $safeSrc  = HtmlEncode $ev.ProviderName
+                $safeLog  = HtmlEncode $ev.LogName
                 $safeDC   = HtmlEncode $dcName
 
-                # Impact & Suggestion
+                # Impact & Suggestion – advisory map first, fall back to log-aware defaults
                 $advisory   = $EventAdvisory[[int]$ev.Id]
-                $impact     = if ($advisory) { $advisory.Impact }     else { $level }
-                $suggestion = if ($advisory) { $advisory.Suggestion } else { 'Review event details and correlate with recent changes.' }
+                $impact     = if ($advisory) { $advisory.Impact } else { $level }
+                $suggestion = if ($advisory) {
+                    $advisory.Suggestion
+                } else {
+                    switch ($ev.LogName) {
+                        'Directory Service' { 'Review AD event details; check replication and DC health.' }
+                        'System'            { 'Review system event details and correlate with recent changes or hardware alerts.' }
+                        'Application'       { 'Review application event details; check related service logs or application documentation.' }
+                        default             { 'Review event details and correlate with recent changes.' }
+                    }
+                }
 
                 if ($impact -eq 'Critical') {
-                    $CriticalFindings.Add("Section 14 - CRITICAL event $($ev.Id) on ${dcName}: $(TruncateMessage $rawMsg 100)")
+                    $CriticalFindings.Add("Section 14 - CRITICAL event $($ev.Id) [$($ev.LogName)] on ${dcName}: $(TruncateMessage $rawMsg 100)")
                 }
 
                 $rowClass = switch ($impact) {
@@ -755,29 +831,28 @@ try {
                     default    { StatusBadge 'Informational'                         'blue'   }
                 }
 
-                $safeImpact = HtmlEncode $impact
-                $safeSugg   = HtmlEncode $suggestion
-                $safeLevel  = HtmlEncode $level
+                $safeSugg  = HtmlEncode $suggestion
+                $safeLevel = HtmlEncode $level
 
-                $allEventRows.Add("<tr class='$rowClass'><td>$safeDC</td><td>$safeTime</td><td>$safeLevel</td><td>$safeId</td><td>$safeSrc</td><td>$safeMsg</td><td>$impactBadge</td><td>$safeSugg</td></tr>")
+                $allEventRows.Add("<tr class='$rowClass'><td>$safeDC</td><td>$safeTime</td><td>$safeLevel</td><td>$safeId</td><td>$safeLog</td><td>$safeSrc</td><td>$safeMsg</td><td>$impactBadge</td><td>$safeSugg</td></tr>")
                 $eventRowCount++
             }
         } catch {
-            $allEventRows.Add("<tr><td colspan='8'><em class='warn'>$(HtmlEncode $dcName) - Error: $(HtmlEncode $_.Exception.Message)</em></td></tr>")
+            $allEventRows.Add("<tr><td colspan='9'><em class='warn'>$(HtmlEncode $dcName) - Error: $(HtmlEncode $_.Exception.Message)</em></td></tr>")
         }
     }
 
     if ($allEventRows.Count -eq 0) {
-        $Sec13Html = "<p class='info'>No Warning/Error/Critical events found in the last $EventLogHours hour(s) on any DC.</p>"
+        $Sec13Html = "<p class='info'>No Warning/Error/Critical events found in the last $EventLogHours hour(s) on any DC (System, Directory Service &amp; Application logs).</p>"
     } else {
         $countLabel = if ($eventRowCount -gt 0) { "$eventRowCount event(s)" } else { "No events found - see DC connection errors below" }
         $Sec13Html = @"
-<p>Scanning last <strong>$EventLogHours hour(s)</strong> on all DCs. Found <strong>$countLabel</strong>.</p>
+<p>Scanning last <strong>$EventLogHours hour(s)</strong> on all DCs (System, Directory Service &amp; Application logs). Found <strong>$countLabel</strong>.</p>
 <div class='table-wrap'>
 <table class='event-table'>
   <thead><tr>
     <th>DC</th><th>Time</th><th>Level</th><th>Event ID</th>
-    <th>Source</th><th>Message</th><th>Impact</th><th>Suggestion</th>
+    <th>Log</th><th>Source</th><th>Message</th><th>Impact</th><th>Suggestion</th>
   </tr></thead>
   <tbody>$($allEventRows -join '')</tbody>
 </table>
@@ -785,7 +860,7 @@ try {
 "@
     }
 } catch {
-    $Sec13Html = "<p class='error'>Error reading Directory Service Event Log: $(HtmlEncode $_.Exception.Message)</p>"
+    $Sec13Html = "<p class='error'>Error reading System Event Log: $(HtmlEncode $_.Exception.Message)</p>"
     $CriticalFindings.Add("Section 14  -  Event Log error: $($_.Exception.Message)")
 }
 
@@ -1235,7 +1310,7 @@ $(BuildSection 10 'AD Tombstone & Recycle Bin'      $Sec9Html  ($Sec9Html  -matc
 $(BuildSection 11 'Privileged Account Audit'        $Sec10Html ($Sec10Html -match 'error')   $false)
 $(BuildSection 12 'Default Domain Password Policy'  $Sec11Html ($Sec11Html -match 'error')   $false)
 $(BuildSection 13 'Stale Objects'                   $Sec12Html ($Sec12Html -match 'error')   $false)
-$(BuildSection 14 'Directory Service Event Log'     $Sec13Html ($Sec13Html -match 'error')   $false)
+$(BuildSection 14 'System Event Log'               $Sec13Html ($Sec13Html -match 'error')   $false)
 $(BuildSection 15 'Windows Update Status'           $Sec14Html ($Sec14Html -match 'error')   $false)
 
 <!-- ═══ FOOTER ═══ -->
