@@ -101,6 +101,30 @@ function Write-Progress2 {
     Write-Host "  [$(Get-Date -Format 'HH:mm:ss')] $msg" -ForegroundColor Cyan
 }
 
+function Send-SmtpMail {
+    # Uses System.Net.Mail.SmtpClient which supports both implicit SSL (port 465)
+    # and explicit SSL/STARTTLS (port 587), unlike Send-MailMessage which only
+    # supports STARTTLS and fails with net_io_connectionclosed on port 465.
+    param([string]$Subject, [string]$Body)
+    $smtp = New-Object System.Net.Mail.SmtpClient([string]$SMTPServer, [int]$SMTPPort)
+    $smtp.EnableSsl        = [bool]$SMTPUseSSL
+    $smtp.DeliveryMethod   = [System.Net.Mail.SmtpDeliveryMethod]::Network
+    if (-not [string]::IsNullOrWhiteSpace($SMTPCredentialUser)) {
+        $smtp.Credentials = New-Object System.Net.NetworkCredential($SMTPCredentialUser, $SMTPCredentialPass)
+    }
+    $msg = New-Object System.Net.Mail.MailMessage
+    $msg.From    = $SMTPFrom
+    foreach ($addr in $SMTPTo) { $msg.To.Add($addr) }
+    $msg.Subject = $Subject
+    $msg.Body    = $Body
+    try {
+        $smtp.Send($msg)
+    } finally {
+        $msg.Dispose()
+        $smtp.Dispose()
+    }
+}
+
 # Collect critical findings for optional email
 $CriticalFindings = [System.Collections.Generic.List[string]]::new()
 
@@ -127,6 +151,53 @@ Write-Host "+==============================================================+" -F
 Write-Host "|        Active Directory Health Check  v$ScriptVersion              |" -ForegroundColor DarkCyan
 Write-Host "+==============================================================+" -ForegroundColor DarkCyan
 Write-Host ""
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# SECTION 1  -  SERVER DETAILS  (host running the script)
+# ═══════════════════════════════════════════════════════════════════════════════
+Write-Progress2 "Section 1: Gathering Server Details..."
+$Sec0Html = ''
+try {
+    $cs   = Get-CimInstance Win32_ComputerSystem  -ErrorAction Stop
+    $bios = Get-CimInstance Win32_BIOS            -ErrorAction Stop
+    $os   = Get-CimInstance Win32_OperatingSystem -ErrorAction Stop
+    $cpu  = @(Get-CimInstance Win32_Processor     -ErrorAction Stop)
+
+    $totalRAM_GB = [math]::Round($cs.TotalPhysicalMemory / 1GB, 2)
+    $isVirtual   = ($cs.Model        -match 'Virtual|VMware|VirtualBox|QEMU|KVM|Xen|HVM') -or
+                   ($cs.Manufacturer -match 'VMware|QEMU|Xen|Parallels|innotek') -or
+                   ($cs.Manufacturer -eq 'Microsoft Corporation' -and $cs.Model -match 'Virtual')
+    $serverTypeBadge = if ($isVirtual) { StatusBadge 'Virtual Machine' 'blue' } else { StatusBadge 'Physical Server' 'green' }
+    $cpuNames    = ($cpu | ForEach-Object { HtmlEncode $_.Name.Trim() } | Select-Object -Unique) -join '; '
+
+    $rows0 = @(
+        @('Hostname',         (HtmlEncode $cs.Name)),
+        @('Manufacturer',     (HtmlEncode $cs.Manufacturer)),
+        @('Model',            (HtmlEncode $cs.Model)),
+        @('Server Type',      $serverTypeBadge),
+        @('Serial Number',    (HtmlEncode $bios.SerialNumber)),
+        @('BIOS Version',     (HtmlEncode $bios.SMBIOSBIOSVersion)),
+        @('Processors',       "$($cpu.Count) x $cpuNames"),
+        @('Total RAM',        "$totalRAM_GB GB"),
+        @('OS Name',          (HtmlEncode $os.Caption)),
+        @('OS Version',       (HtmlEncode $os.Version)),
+        @('OS Build',         (HtmlEncode $os.BuildNumber)),
+        @('OS Install Date',  (HtmlEncode $os.InstallDate.ToString('yyyy-MM-dd'))),
+        @('Last Boot Time',   (HtmlEncode $os.LastBootUpTime.ToString('yyyy-MM-dd HH:mm:ss')))
+    )
+
+    $rows0Html = ($rows0 | ForEach-Object {
+        "<tr><td class='td-label'>$($_[0])</td><td>$($_[1])</td></tr>"
+    }) -join ''
+
+    $Sec0Html = @"
+<table class='kv-table'>
+  <tbody>$rows0Html</tbody>
+</table>
+"@
+} catch {
+    $Sec0Html = "<p class='error'>Error retrieving Server Details: $(HtmlEncode $_.Exception.Message)</p>"
+}
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # SECTION 1  -  DOMAIN & FOREST INFO
@@ -1131,21 +1202,22 @@ tbody tr:hover { background: var(--th-bg); }
   </div>
 </div>
 
-<!-- ═══ 14 SECTIONS ═══ -->
-$(BuildSection 1 'Domain & Forest Info'            $Sec1Html  ($Sec1Html  -match 'error')   $true)
-$(BuildSection 2 'Domain Controller Inventory'     $Sec2Html  ($Sec2Html  -match 'error')   $true)
-$(BuildSection 3 'AD Services Status per DC'       $Sec3Html  ($Sec3Html  -match 'error')   $false)
-$(BuildSection 4 'Replication Health'              $Sec4Html  ($Sec4Html  -match 'error')   $false)
-$(BuildSection 5 'SYSVOL & Netlogon Shares'        $Sec5Html  ($Sec5Html  -match 'error')   $false)
-$(BuildSection 6 'DNS Health'                      $Sec6Html  ($Sec6Html  -match 'error')   $false)
-$(BuildSection 7 'FSMO Role Holders'               $Sec7Html  ($Sec7Html  -match 'error')   $false)
-$(BuildSection 8 'AD Trust Relationships'          $Sec8Html  ($Sec8Html  -match 'error')   $false)
-$(BuildSection 9 'AD Tombstone & Recycle Bin'      $Sec9Html  ($Sec9Html  -match 'error')   $false)
-$(BuildSection 10 'Privileged Account Audit'       $Sec10Html ($Sec10Html -match 'error')   $false)
-$(BuildSection 11 'Default Domain Password Policy' $Sec11Html ($Sec11Html -match 'error')   $false)
-$(BuildSection 12 'Stale Objects'                  $Sec12Html ($Sec12Html -match 'error')   $false)
-$(BuildSection 13 'Directory Service Event Log'    $Sec13Html ($Sec13Html -match 'error')   $false)
-$(BuildSection 14 'Windows Update Status'          $Sec14Html ($Sec14Html -match 'error')   $false)
+<!-- ═══ 15 SECTIONS ═══ -->
+$(BuildSection 1  'Server Details'                  $Sec0Html  ($Sec0Html  -match 'error')   $true)
+$(BuildSection 2  'Domain & Forest Info'            $Sec1Html  ($Sec1Html  -match 'error')   $true)
+$(BuildSection 3  'Domain Controller Inventory'     $Sec2Html  ($Sec2Html  -match 'error')   $true)
+$(BuildSection 4  'AD Services Status per DC'       $Sec3Html  ($Sec3Html  -match 'error')   $false)
+$(BuildSection 5  'Replication Health'              $Sec4Html  ($Sec4Html  -match 'error')   $false)
+$(BuildSection 6  'SYSVOL & Netlogon Shares'        $Sec5Html  ($Sec5Html  -match 'error')   $false)
+$(BuildSection 7  'DNS Health'                      $Sec6Html  ($Sec6Html  -match 'error')   $false)
+$(BuildSection 8  'FSMO Role Holders'               $Sec7Html  ($Sec7Html  -match 'error')   $false)
+$(BuildSection 9  'AD Trust Relationships'          $Sec8Html  ($Sec8Html  -match 'error')   $false)
+$(BuildSection 10 'AD Tombstone & Recycle Bin'      $Sec9Html  ($Sec9Html  -match 'error')   $false)
+$(BuildSection 11 'Privileged Account Audit'        $Sec10Html ($Sec10Html -match 'error')   $false)
+$(BuildSection 12 'Default Domain Password Policy'  $Sec11Html ($Sec11Html -match 'error')   $false)
+$(BuildSection 13 'Stale Objects'                   $Sec12Html ($Sec12Html -match 'error')   $false)
+$(BuildSection 14 'Directory Service Event Log'     $Sec13Html ($Sec13Html -match 'error')   $false)
+$(BuildSection 15 'Windows Update Status'           $Sec14Html ($Sec14Html -match 'error')   $false)
 
 <!-- ═══ FOOTER ═══ -->
 <div class="footer">
@@ -1198,24 +1270,7 @@ if ($EnableEmailAlert -and $CriticalFindings.Count -gt 0) {
         $emailBody += "`r`n`r`nPlease review the full report: $ReportFile"
         $emailBody += "`r`n`r`n-- AD Health Check v$ScriptVersion by $AuthorName"
 
-        $mailParams = @{
-            SmtpServer  = $SMTPServer
-            Port        = $SMTPPort
-            From        = $SMTPFrom
-            To          = $SMTPTo
-            Subject     = $SMTPSubject
-            Body        = $emailBody
-            UseSsl      = $SMTPUseSSL
-            ErrorAction = 'Stop'
-        }
-
-        if (-not [string]::IsNullOrWhiteSpace($SMTPCredentialUser)) {
-            $secPass   = ConvertTo-SecureString $SMTPCredentialPass -AsPlainText -Force
-            $cred      = New-Object System.Management.Automation.PSCredential($SMTPCredentialUser, $secPass)
-            $mailParams['Credential'] = $cred
-        }
-
-        Send-MailMessage @mailParams
+        Send-SmtpMail -Subject $SMTPSubject -Body $emailBody
         Write-Host "  [OK] Alert email sent to: $($SMTPTo -join ', ')" -ForegroundColor Green
     } catch {
         Write-Warning "Failed to send alert email: $_"
@@ -1235,24 +1290,7 @@ if ($EnableEmailAlert -and $CriticalFindings.Count -gt 0) {
         $healthyBody += "Full report saved to: $ReportFile`r`n`r`n"
         $healthyBody += "-- AD Health Check v$ScriptVersion by $AuthorName"
 
-        $mailParams = @{
-            SmtpServer  = $SMTPServer
-            Port        = $SMTPPort
-            From        = $SMTPFrom
-            To          = $SMTPTo
-            Subject     = $healthySubject
-            Body        = $healthyBody
-            UseSsl      = $SMTPUseSSL
-            ErrorAction = 'Stop'
-        }
-
-        if (-not [string]::IsNullOrWhiteSpace($SMTPCredentialUser)) {
-            $secPass   = ConvertTo-SecureString $SMTPCredentialPass -AsPlainText -Force
-            $cred      = New-Object System.Management.Automation.PSCredential($SMTPCredentialUser, $secPass)
-            $mailParams['Credential'] = $cred
-        }
-
-        Send-MailMessage @mailParams
+        Send-SmtpMail -Subject $healthySubject -Body $healthyBody
         Write-Host "  [OK] Healthy state notification sent to: $($SMTPTo -join ', ')" -ForegroundColor Green
     } catch {
         Write-Warning "Failed to send healthy state notification: $_"
