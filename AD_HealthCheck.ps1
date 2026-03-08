@@ -844,7 +844,54 @@ try {
             } -ErrorAction SilentlyContinue
 
             if ($null -eq $pendingResult) {
-                $pendingHtml = "<p class='warn'>Could not query pending updates (WinRM may be unavailable).</p>"
+                # WinRM unavailable — attempt a direct local COM fallback.
+                # This succeeds when the script is running on the same DC being checked.
+                $localFallbackDone = $false
+                try {
+                    # Compare FQDN of $dcName against local computer name to avoid
+                    # false matches (e.g. "DC1" vs "DC10").
+                    $localFQDN   = [System.Net.Dns]::GetHostEntry('').HostName
+                    $localMachine = ($dcName -eq $env:COMPUTERNAME) -or
+                                    ($dcName -eq $localFQDN)
+                    if ($localMachine) {
+                        $localSession  = New-Object -ComObject 'Microsoft.Update.Session' -ErrorAction Stop
+                        $localSearcher = $localSession.CreateUpdateSearcher()
+                        $localResult   = $localSearcher.Search("IsInstalled=0 and IsHidden=0")
+                        $localFallbackDone = $true
+                        if ($localResult.Updates.Count -eq 0) {
+                            $pendingHtml = "<p class='info'>$(StatusBadge 'Windows is Up-to-Date' 'green')</p>"
+                        } else {
+                            $localRows = foreach ($u in $localResult.Updates) {
+                                $sev    = if ($u.MsrcSeverity) { $u.MsrcSeverity } else { 'Unknown' }
+                                $sevBadge = switch ($sev) {
+                                    'Critical'  { StatusBadge 'Critical'  'red'    }
+                                    'Important' { StatusBadge 'Important' 'yellow' }
+                                    default     { StatusBadge $sev        'grey'   }
+                                }
+                                if ($sev -in @('Critical','Important')) {
+                                    $CriticalFindings.Add("Section 15  -  DC $dcName has pending $sev update: $($u.Title)")
+                                }
+                                "<tr><td>$(HtmlEncode $u.Title)</td><td>$sevBadge</td></tr>"
+                            }
+                            $pendingHtml = @"
+<h4>Pending Updates ($($localResult.Updates.Count))</h4>
+<div class='table-wrap'>
+<table>
+  <thead><tr><th>Update Title</th><th>Severity</th></tr></thead>
+  <tbody>$($localRows -join '')</tbody>
+</table>
+</div>
+"@
+                        }
+                    }
+                } catch {
+                    # Local COM fallback failed (e.g. Windows Update service disabled or COM error).
+                    # $localFallbackDone stays $false so the warning is shown below.
+                    Write-Warning "Local Windows Update COM fallback failed for ${dcName}: $_"
+                }
+                if (-not $localFallbackDone) {
+                    $pendingHtml = "<p class='warn'>Could not query pending updates (WinRM may be unavailable). Run this script directly on $(HtmlEncode $dcName) for accurate results.</p>"
+                }
             } elseif (@($pendingResult).Count -eq 0) {
                 $pendingHtml = "<p class='info'>$(StatusBadge 'No pending updates' 'green')</p>"
             } else {
