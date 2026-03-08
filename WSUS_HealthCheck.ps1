@@ -156,7 +156,7 @@ try {
                    ($cs.Manufacturer -match 'VMware|QEMU|Xen|Parallels|innotek') -or
                    ($cs.Manufacturer -eq 'Microsoft Corporation' -and $cs.Model -match 'Virtual')
     $serverTypeBadge = if ($isVirtual) { StatusBadge 'Virtual Machine' 'blue' } else { StatusBadge 'Physical Server' 'green' }
-    $cpuNames    = ($cpu | ForEach-Object { HtmlEncode (if ($null -ne $_.Name) { $_.Name.Trim() } else { 'Unknown' }) } | Select-Object -Unique) -join '; '
+    $cpuNames    = ($cpu | ForEach-Object { HtmlEncode $(if ($null -ne $_.Name) { $_.Name.Trim() } else { 'Unknown' }) } | Select-Object -Unique) -join '; '
 
     $installDate  = if ($null -ne $os.InstallDate)    { $os.InstallDate.ToString('yyyy-MM-dd')            } else { 'N/A' }
     $lastBootTime = if ($null -ne $os.LastBootUpTime) { $os.LastBootUpTime.ToString('yyyy-MM-dd HH:mm:ss') } else { 'N/A' }
