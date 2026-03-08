@@ -140,6 +140,52 @@ Write-Host "|       WSUS Health Check  v$ScriptVersion                          
 Write-Host "+==============================================================+" -ForegroundColor DarkCyan
 Write-Host ""
 
+# ═══════════════════════════════════════════════════════════════════════════════
+# SECTION 0  -  SERVER DETAILS  (host running the script)
+# ═══════════════════════════════════════════════════════════════════════════════
+Write-Progress2 "Section 0: Gathering Server Details..."
+$Sec0Html = ''
+try {
+    $cs   = Get-CimInstance Win32_ComputerSystem  -ErrorAction Stop
+    $bios = Get-CimInstance Win32_BIOS            -ErrorAction Stop
+    $os   = Get-CimInstance Win32_OperatingSystem -ErrorAction Stop
+    $cpu  = @(Get-CimInstance Win32_Processor     -ErrorAction Stop)
+
+    $totalRAM_GB = [math]::Round($cs.TotalPhysicalMemory / 1GB, 2)
+    $isVirtual   = ($cs.Model        -match 'Virtual|VMware|VirtualBox|QEMU|KVM|Xen|HVM') -or
+                   ($cs.Manufacturer -match 'VMware|QEMU|Xen|Parallels|innotek') -or
+                   ($cs.Manufacturer -eq 'Microsoft Corporation' -and $cs.Model -match 'Virtual')
+    $serverTypeBadge = if ($isVirtual) { StatusBadge 'Virtual Machine' 'blue' } else { StatusBadge 'Physical Server' 'green' }
+    $cpuNames    = ($cpu | ForEach-Object { HtmlEncode (if ($null -ne $_.Name) { $_.Name.Trim() } else { 'Unknown' }) } | Select-Object -Unique) -join '; '
+
+    $installDate  = if ($null -ne $os.InstallDate)    { $os.InstallDate.ToString('yyyy-MM-dd')            } else { 'N/A' }
+    $lastBootTime = if ($null -ne $os.LastBootUpTime) { $os.LastBootUpTime.ToString('yyyy-MM-dd HH:mm:ss') } else { 'N/A' }
+
+    $rows0 = @(
+        @('Hostname',        (HtmlEncode $cs.Name)),
+        @('Manufacturer',    (HtmlEncode $cs.Manufacturer)),
+        @('Model',           (HtmlEncode $cs.Model)),
+        @('Server Type',     $serverTypeBadge),
+        @('Serial Number',   (HtmlEncode $bios.SerialNumber)),
+        @('BIOS Version',    (HtmlEncode $bios.SMBIOSBIOSVersion)),
+        @('Processors',      "$($cpu.Count) x $cpuNames"),
+        @('Total RAM',       "$totalRAM_GB GB"),
+        @('OS Name',         (HtmlEncode $os.Caption)),
+        @('OS Version',      (HtmlEncode $os.Version)),
+        @('OS Build',        (HtmlEncode $os.BuildNumber)),
+        @('OS Install Date', (HtmlEncode $installDate)),
+        @('Last Boot Time',  (HtmlEncode $lastBootTime))
+    )
+
+    $rows0Html = ($rows0 | ForEach-Object {
+        "<tr><td class='td-label'>$($_[0])</td><td>$($_[1])</td></tr>"
+    }) -join ''
+
+    $Sec0Html = "<div class='table-wrap'><table class='kv-table'><tbody>$rows0Html</tbody></table></div>"
+} catch {
+    $Sec0Html = "<p class='error'>Error retrieving Server Details: $(HtmlEncode $_.Exception.Message)</p>"
+}
+
 # ── CHECK FOR WSUS MODULE ────────────────────────────────────────────────────
 $WsusModuleAvailable = $false
 $WsusServer          = $null
@@ -1243,7 +1289,8 @@ $(if ($CritCount -gt 0) {
     "<div style='background:rgba(218,54,51,.12);border:1px solid #da3633;border-radius:8px;padding:14px 18px;margin-bottom:16px;'><strong style='color:#f85149;'>&#x26A0; $CritCount Critical Finding(s) Detected</strong><ul style='margin:.6rem 0 0 1.2rem;color:#f85149;'>$cfRows</ul></div>"
 })
 
-<!-- 11 SECTIONS -->
+<!-- 12 SECTIONS -->
+$(BuildSection 0  'Server Details'                  $Sec0Html  ($Sec0Html  -match 'error|Error')  $true)
 $(BuildSection 1  'WSUS Server Info'                $Sec1Html  ($Sec1Html  -match 'error|Error')  $true)
 $(BuildSection 2  'Synchronization Status'          $Sec2Html  ($Sec2Html  -match 'error|Error')  $true)
 $(BuildSection 3  'IIS Application Pool Health'     $Sec3Html  ($Sec3Html  -match 'error|Error')  $false)
