@@ -9,7 +9,7 @@
     dark/light-themed dashboard UI.
 
 .NOTES
-    Version    : 1.0.0
+    Version    : 2.0.0
     Author     : Tushar Gudde
     Requires   : PowerShell 5.1+, RSAT AD DS Tools (ActiveDirectory module)
     Permissions: Domain Admin or equivalent
@@ -18,7 +18,7 @@
 # ── CONFIGURATION ─────────────────────────────────────────────────────────────
 # Company Branding
 $CompanyLogoURL    = ''                          # URL/path to company logo (PNG/SVG). Leave blank to skip.
-$CompanyWebsite    = ''                          # Company website URL for logo hyperlink.
+$CompanyWebsite    = 'https://tushargudde.tech'                          # Company website URL for logo hyperlink.
 
 # Author
 $AuthorName        = 'Tushar Gudde'              # Author name shown in footer
@@ -35,7 +35,7 @@ $EnableStatusFile       = $true                  # Write a plain-text status sum
 # ──────────────────────────────────────────────────────────────────────────────
 # NOTE: For email notifications, run AD_HealthCheck_EmailAlert.ps1 after this script.
 
-$ScriptVersion  = '1.0.0'
+$ScriptVersion  = '2.0.0'
 $StartTime      = Get-Date
 $ScriptDir      = Split-Path -Parent $MyInvocation.MyCommand.Definition
 if ([string]::IsNullOrEmpty($ScriptDir)) { $ScriptDir = $PWD.Path }
