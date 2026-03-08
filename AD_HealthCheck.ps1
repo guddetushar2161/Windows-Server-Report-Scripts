@@ -29,18 +29,16 @@ $EventLogHours     = 2                           # How many hours back to scan e
 # Stale Object Threshold
 $StaleThresholdDays = 90                         # Days of inactivity before flagged stale
 
-# Email Alert Configuration
-$EnableEmailAlert       = $false
-$SMTPServer             = 'smtp.yourdomain.com'
-$SMTPPort               = 587
-$SMTPFrom               = 'ad-healthcheck@yourdomain.com'
-$SMTPTo                 = @('admin@yourdomain.com')
-$SMTPSubject            = 'AD Health Check - CRITICAL ALERT'
-$SMTPUseSSL             = $true
-$SMTPCredentialUser     = ''                     # Leave blank for anonymous relay
-$SMTPCredentialPass     = ''                     # Leave blank for anonymous relay
-# SECURITY NOTE: For production use, avoid storing credentials in the script.
-# Use Windows Credential Manager, a secrets vault, or prompt at runtime via Get-Credential.
+# Alert Configuration
+# -- Windows Event Log (built-in, no network required) --
+$EnableEventLogAlert    = $true                  # Write findings to Windows Application Event Log
+$EventLogSource         = 'AD-HealthCheck'       # Event source name (auto-registered on first run)
+$EventLogName           = 'Application'          # Target log: Application | System
+$EventLogEventId        = 1000                   # Event ID written for critical findings
+# -- Microsoft Teams Webhook (optional) --
+$EnableTeamsAlert       = $false                 # Set $true and fill URL below to enable
+$TeamsWebhookUrl        = ''                     # Paste your Teams channel Incoming Webhook URL here
+# SECURITY NOTE: Store the webhook URL in a secrets vault or pass at runtime to avoid committing it.
 # ──────────────────────────────────────────────────────────────────────────────
 
 $ScriptVersion  = '1.0.0'
@@ -101,27 +99,40 @@ function Write-Progress2 {
     Write-Host "  [$(Get-Date -Format 'HH:mm:ss')] $msg" -ForegroundColor Cyan
 }
 
-function Send-SmtpMail {
-    # Uses System.Net.Mail.SmtpClient which supports both implicit SSL (port 465)
-    # and explicit SSL/STARTTLS (port 587), unlike Send-MailMessage which only
-    # supports STARTTLS and fails with net_io_connectionclosed on port 465.
-    param([string]$Subject, [string]$Body)
-    $smtp = New-Object System.Net.Mail.SmtpClient([string]$SMTPServer, [int]$SMTPPort)
-    $smtp.EnableSsl        = [bool]$SMTPUseSSL
-    $smtp.DeliveryMethod   = [System.Net.Mail.SmtpDeliveryMethod]::Network
-    if (-not [string]::IsNullOrWhiteSpace($SMTPCredentialUser)) {
-        $smtp.Credentials = New-Object System.Net.NetworkCredential($SMTPCredentialUser, $SMTPCredentialPass)
-    }
-    $msg = New-Object System.Net.Mail.MailMessage
-    $msg.From    = $SMTPFrom
-    foreach ($addr in $SMTPTo) { $msg.To.Add($addr) }
-    $msg.Subject = $Subject
-    $msg.Body    = $Body
+function Write-ToEventLog {
+    # Writes a message to the Windows Application Event Log.
+    # No network connection required — always available on Windows Server.
+    param([string]$Message, [string]$EntryType = 'Warning')
     try {
-        $smtp.Send($msg)
-    } finally {
-        $msg.Dispose()
-        $smtp.Dispose()
+        if (-not [System.Diagnostics.EventLog]::SourceExists($EventLogSource)) {
+            [System.Diagnostics.EventLog]::CreateEventSource($EventLogSource, $EventLogName)
+        }
+        Write-EventLog -LogName $EventLogName -Source $EventLogSource `
+            -EventId $EventLogEventId -EntryType $EntryType -Message $Message -ErrorAction Stop
+    } catch {
+        Write-Warning "EventLog write failed: $_"
+    }
+}
+
+function Send-TeamsAlert {
+    # Posts an Adaptive Card-style message to a Microsoft Teams channel via Incoming Webhook.
+    # Configure $TeamsWebhookUrl in the CONFIGURATION section above.
+    param([string]$Title, [string]$Body)
+    try {
+        $teamsBody = $Body -replace "`r`n", "`n"
+        # Build a simple MessageCard payload (works with all Teams Incoming Webhooks)
+        $payload = [ordered]@{
+            '@type'    = 'MessageCard'
+            '@context' = 'https://schema.org/extensions'
+            'summary'  = $Title
+            'themeColor' = 'da3633'
+            'title'    = $Title
+            'text'     = ($teamsBody -replace '\n', "<br>")
+        } | ConvertTo-Json -Depth 4
+        Invoke-RestMethod -Uri $TeamsWebhookUrl -Method Post `
+            -ContentType 'application/json' -Body $payload -ErrorAction Stop
+    } catch {
+        Write-Warning "Teams alert failed: $_"
     }
 }
 
@@ -974,6 +985,7 @@ function BuildSection {
     return @"
 <details class='section-card'$openAttr>
   <summary class='section-summary'>
+    <span class='sec-arrow'>&#9654;</span>
     <span class='sec-num'>$num</span>
     <span class='sec-title'>$(HtmlEncode $title)</span>
     $indicator
@@ -1091,9 +1103,10 @@ em { font-style: italic; }
 .section-summary { display: flex; align-items: center; gap: 10px; cursor: pointer;
                    padding: 14px 18px; list-style: none; user-select: none; }
 .section-summary::-webkit-details-marker { display: none; }
-.section-summary::before { content: '▶'; font-size: 10px; color: var(--muted);
-                            transition: transform .2s; }
-details[open] > .section-summary::before { transform: rotate(90deg); }
+.section-summary::marker { display: none; }
+.sec-arrow { font-size: 10px; color: var(--muted); display: inline-block;
+             transition: transform .2s; flex-shrink: 0; line-height: 1; }
+details[open] > .section-summary .sec-arrow { transform: rotate(90deg); }
 .section-summary:hover { background: var(--th-bg); }
 .sec-num   { background: var(--blue); color: #fff; font-size: .7rem; font-weight: 700;
              width: 22px; height: 22px; border-radius: 50%; display: flex;
@@ -1260,41 +1273,43 @@ try {
 }
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# EMAIL ALERT (OPTIONAL)
+# ALERT NOTIFICATIONS
 # ═══════════════════════════════════════════════════════════════════════════════
-if ($EnableEmailAlert -and $CriticalFindings.Count -gt 0) {
-    Write-Progress2 "Sending critical alert email..."
-    try {
-        $emailBody = "Active Directory Health Check detected $($CriticalFindings.Count) critical finding(s):`r`n`r`n"
-        $emailBody += ($CriticalFindings | ForEach-Object { "• $_" }) -join "`r`n"
-        $emailBody += "`r`n`r`nPlease review the full report: $ReportFile"
-        $emailBody += "`r`n`r`n-- AD Health Check v$ScriptVersion by $AuthorName"
+$alertTitle = if ($CriticalFindings.Count -gt 0) {
+    "AD Health Check - CRITICAL ALERT [$domainName]"
+} else {
+    "AD Health Check - Healthy State [$domainName] $(Get-Date -Format 'yyyy-MM-dd HH:mm')"
+}
 
-        Send-SmtpMail -Subject $SMTPSubject -Body $emailBody
-        Write-Host "  [OK] Alert email sent to: $($SMTPTo -join ', ')" -ForegroundColor Green
-    } catch {
-        Write-Warning "Failed to send alert email: $_"
-    }
-} elseif ($EnableEmailAlert -and $CriticalFindings.Count -eq 0) {
-    Write-Progress2 "No critical findings - sending healthy state notification..."
-    try {
-        $healthySubject = "AD Health Check - AD is in Healthy State [$domainName] $(Get-Date -Format 'yyyy-MM-dd HH:mm')"
-        $healthyBody  = "Active Directory Health Check completed successfully.`r`n`r`n"
-        $healthyBody += "STATUS: Your AD environment is in a HEALTHY STATE.`r`n"
-        $healthyBody += "No critical findings, errors, or warnings were detected.`r`n`r`n"
-        $healthyBody += "Domain      : $domainName`r`n"
-        $healthyBody += "Forest Level: $forestLevel`r`n"
-        $healthyBody += "Total DCs   : $DCCount`r`n"
-        $healthyBody += "Generated   : $ReportDate`r`n"
-        $healthyBody += "Duration    : $Duration`r`n`r`n"
-        $healthyBody += "Full report saved to: $ReportFile`r`n`r`n"
-        $healthyBody += "-- AD Health Check v$ScriptVersion by $AuthorName"
+$alertBody  = if ($CriticalFindings.Count -gt 0) {
+    "Active Directory Health Check detected $($CriticalFindings.Count) critical finding(s):`r`n`r`n" +
+    (($CriticalFindings | ForEach-Object { "• $_" }) -join "`r`n") +
+    "`r`n`r`nPlease review the full report: $ReportFile`r`n`r`n-- AD Health Check v$ScriptVersion by $AuthorName"
+} else {
+    "Active Directory Health Check completed successfully.`r`n`r`n" +
+    "STATUS: Your AD environment is in a HEALTHY STATE.`r`n" +
+    "No critical findings, errors, or warnings were detected.`r`n`r`n" +
+    "Domain      : $domainName`r`n" +
+    "Forest Level: $forestLevel`r`n" +
+    "Total DCs   : $DCCount`r`n" +
+    "Generated   : $ReportDate`r`n" +
+    "Duration    : $Duration`r`n`r`n" +
+    "Full report saved to: $ReportFile`r`n`r`n-- AD Health Check v$ScriptVersion by $AuthorName"
+}
 
-        Send-SmtpMail -Subject $healthySubject -Body $healthyBody
-        Write-Host "  [OK] Healthy state notification sent to: $($SMTPTo -join ', ')" -ForegroundColor Green
-    } catch {
-        Write-Warning "Failed to send healthy state notification: $_"
-    }
+# -- Windows Event Log --
+if ($EnableEventLogAlert) {
+    Write-Progress2 "Writing findings to Windows Event Log ($EventLogName)..."
+    $evtType = if ($CriticalFindings.Count -gt 0) { 'Warning' } else { 'Information' }
+    Write-ToEventLog -Message $alertBody -EntryType $evtType
+    Write-Host "  [OK] Event written to $EventLogName log (Source: $EventLogSource, EventId: $EventLogEventId)" -ForegroundColor Green
+}
+
+# -- Microsoft Teams Webhook --
+if ($EnableTeamsAlert -and -not [string]::IsNullOrWhiteSpace($TeamsWebhookUrl)) {
+    Write-Progress2 "Sending Teams notification..."
+    Send-TeamsAlert -Title $alertTitle -Body $alertBody
+    Write-Host "  [OK] Teams notification sent." -ForegroundColor Green
 }
 
 Write-Host ""
