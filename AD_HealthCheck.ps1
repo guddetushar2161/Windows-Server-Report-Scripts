@@ -644,35 +644,136 @@ try {
     if (-not $ADModuleAvailable) { throw "ActiveDirectory module not available." }
     $staleDate = (Get-Date).AddDays(-$StaleThresholdDays)
 
-    $staleUsers = 0
-    $staleComps = 0
-
+    # ── Stale Users – fetch full details for the expandable table ─────────
+    $staleUserList = $null
     try {
-        $staleUsers = @(Get-ADUser -Filter {
+        $staleUserList = @(Get-ADUser -Filter {
             Enabled -eq $true -and LastLogonDate -lt $staleDate
-        } -Properties LastLogonDate -ErrorAction SilentlyContinue).Count
-    } catch { $staleUsers = -1 }
+        } -Properties DisplayName, EmailAddress, Department,
+                       LastLogonDate, PasswordLastSet, DistinguishedName `
+          -ErrorAction SilentlyContinue | Sort-Object LastLogonDate)
+    } catch { $staleUserList = $null }
 
+    # ── Stale Computers – fetch full details ──────────────────────────────
+    $staleCompList = $null
     try {
-        $staleComps = @(Get-ADComputer -Filter {
+        $staleCompList = @(Get-ADComputer -Filter {
             Enabled -eq $true -and LastLogonDate -lt $staleDate
-        } -Properties LastLogonDate -ErrorAction SilentlyContinue).Count
-    } catch { $staleComps = -1 }
+        } -Properties DNSHostName, OperatingSystem, OperatingSystemVersion,
+                       LastLogonDate, DistinguishedName `
+          -ErrorAction SilentlyContinue | Sort-Object LastLogonDate)
+    } catch { $staleCompList = $null }
 
-    $uBadge = if ($staleUsers -gt 0) { StatusBadge "$staleUsers stale users" 'yellow' }
-              elseif ($staleUsers -eq 0) { StatusBadge '0 stale users' 'green' }
-              else { StatusBadge 'Error' 'grey' }
+    $staleUsers = if ($null -ne $staleUserList) { $staleUserList.Count } else { -1 }
+    $staleComps = if ($null -ne $staleCompList) { $staleCompList.Count } else { -1 }
 
-    $cBadge = if ($staleComps -gt 0) { StatusBadge "$staleComps stale computers" 'yellow' }
-              elseif ($staleComps -eq 0) { StatusBadge '0 stale computers' 'green' }
-              else { StatusBadge 'Error' 'grey' }
+    # ── Helper: extract OU path from DistinguishedName ────────────────────
+    function Get-OUFromDN {
+        param([string]$dn)
+        if ([string]::IsNullOrEmpty($dn)) { return '' }
+        # Remove the first CN=... component to get the containing OU/container path
+        $parts = $dn -split ',', 2
+        if ($parts.Count -gt 1) { return $parts[1] } else { return $dn }
+    }
+
+    # ── Build stale-user detail table ─────────────────────────────────────
+    $uDetailHtml = ''
+    if ($staleUsers -gt 0) {
+        $uRows = foreach ($u in $staleUserList) {
+            $ll  = if ($u.LastLogonDate)   { HtmlEncode $u.LastLogonDate.ToString('yyyy-MM-dd')   } else { '<em>Never</em>' }
+            $pls = if ($u.PasswordLastSet) { HtmlEncode $u.PasswordLastSet.ToString('yyyy-MM-dd') } else { '<em>Never</em>' }
+            $ou  = HtmlEncode (Get-OUFromDN $u.DistinguishedName)
+            "<tr>
+               <td>$(HtmlEncode $u.SamAccountName)</td>
+               <td>$(HtmlEncode $u.DisplayName)</td>
+               <td>$(HtmlEncode $u.EmailAddress)</td>
+               <td>$(HtmlEncode $u.Department)</td>
+               <td>$ll</td>
+               <td>$pls</td>
+               <td class='stale-ou'>$ou</td>
+             </tr>"
+        }
+        $uDetailHtml = @"
+<div class='table-wrap stale-detail-wrap'>
+<table>
+  <thead><tr>
+    <th>SAM Account</th><th>Display Name</th><th>Email</th><th>Department</th>
+    <th>Last Logon</th><th>Password Last Set</th><th>OU / Container</th>
+  </tr></thead>
+  <tbody>$($uRows -join '')</tbody>
+</table>
+</div>
+"@
+    }
+
+    # ── Build stale-computer detail table ─────────────────────────────────
+    $cDetailHtml = ''
+    if ($staleComps -gt 0) {
+        $cRows = foreach ($c in $staleCompList) {
+            $ll  = if ($c.LastLogonDate) { HtmlEncode $c.LastLogonDate.ToString('yyyy-MM-dd') } else { '<em>Never</em>' }
+            $ou  = HtmlEncode (Get-OUFromDN $c.DistinguishedName)
+            "<tr>
+               <td>$(HtmlEncode $c.Name)</td>
+               <td>$(HtmlEncode $c.DNSHostName)</td>
+               <td>$(HtmlEncode $c.OperatingSystem)</td>
+               <td>$(HtmlEncode $c.OperatingSystemVersion)</td>
+               <td>$ll</td>
+               <td class='stale-ou'>$ou</td>
+             </tr>"
+        }
+        $cDetailHtml = @"
+<div class='table-wrap stale-detail-wrap'>
+<table>
+  <thead><tr>
+    <th>Computer Name</th><th>DNS Host Name</th><th>Operating System</th>
+    <th>OS Version</th><th>Last Logon</th><th>OU / Container</th>
+  </tr></thead>
+  <tbody>$($cRows -join '')</tbody>
+</table>
+</div>
+"@
+    }
+
+    # ── Badges and expandable panels ──────────────────────────────────────
+    $uBadgeText = if ($staleUsers -ge 0) { "$staleUsers stale users" } else { 'Error' }
+    $uBadge     = if ($staleUsers -gt 0) { StatusBadge $uBadgeText 'yellow' }
+                  elseif ($staleUsers -eq 0) { StatusBadge $uBadgeText 'green' }
+                  else { StatusBadge $uBadgeText 'grey' }
+
+    $cBadgeText = if ($staleComps -ge 0) { "$staleComps stale computers" } else { 'Error' }
+    $cBadge     = if ($staleComps -gt 0) { StatusBadge $cBadgeText 'yellow' }
+                  elseif ($staleComps -eq 0) { StatusBadge $cBadgeText 'green' }
+                  else { StatusBadge $cBadgeText 'grey' }
+
+    # Wrap each row in a <details> for click-to-expand when there are stale objects
+    $uRow = if ($staleUsers -gt 0) {
+        "<tr><td class='td-label'>Stale User Accounts</td><td>
+          <details class='stale-details'>
+            <summary class='stale-summary' aria-label='$($staleUsers) stale user accounts – click to expand'>$uBadge <span class='stale-hint' aria-hidden='true'>&#x25BE; click to view accounts</span></summary>
+            $uDetailHtml
+          </details>
+        </td></tr>"
+    } else {
+        "<tr><td class='td-label'>Stale User Accounts</td><td>$uBadge</td></tr>"
+    }
+
+    $cRow = if ($staleComps -gt 0) {
+        "<tr><td class='td-label'>Stale Computer Accounts</td><td>
+          <details class='stale-details'>
+            <summary class='stale-summary' aria-label='$($staleComps) stale computer accounts – click to expand'>$cBadge <span class='stale-hint' aria-hidden='true'>&#x25BE; click to view devices</span></summary>
+            $cDetailHtml
+          </details>
+        </td></tr>"
+    } else {
+        "<tr><td class='td-label'>Stale Computer Accounts</td><td>$cBadge</td></tr>"
+    }
 
     $Sec12Html = @"
 <p>Threshold: <strong>$StaleThresholdDays days</strong> of inactivity (enabled objects only)</p>
 <table class='kv-table'>
   <tbody>
-    <tr><td class='td-label'>Stale User Accounts</td><td>$uBadge</td></tr>
-    <tr><td class='td-label'>Stale Computer Accounts</td><td>$cBadge</td></tr>
+    $uRow
+    $cRow
   </tbody>
 </table>
 "@
@@ -1230,6 +1331,17 @@ tbody tr:hover { background: var(--th-bg); }
   word-break: break-word;
   white-space: normal;
 }
+
+/* ── STALE OBJECTS – expandable detail panels ── */
+.stale-details { display: block; }
+.stale-summary { list-style: none; cursor: pointer; display: inline-flex;
+                 align-items: center; gap: 6px; user-select: none; }
+.stale-summary::-webkit-details-marker { display: none; }
+.stale-summary:focus { outline: 2px solid var(--blue); outline-offset: 2px;
+                       border-radius: 3px; }
+.stale-hint { font-size: .72rem; color: var(--muted); font-style: italic; }
+.stale-detail-wrap { margin-top: 10px; }
+.stale-ou { font-size: .75rem; color: var(--muted); word-break: break-all; }
 
 /* ── MESSAGE CLASSES ── */
 .error { color: #f85149; padding: 8px 12px; background: rgba(248,81,73,.1);
