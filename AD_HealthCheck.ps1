@@ -749,7 +749,7 @@ try {
     $uRow = if ($staleUsers -gt 0) {
         "<tr><td class='td-label'>Stale User Accounts</td><td>
           <details class='stale-details'>
-            <summary class='stale-summary' aria-label='$($staleUsers) stale user accounts – click to expand'>$uBadge <span class='stale-hint' aria-hidden='true'>&#x25BE; click to view accounts</span></summary>
+            <summary class='stale-summary' aria-label='$($staleUsers) stale user accounts - click to expand'>$uBadge <span class='stale-hint' aria-hidden='true'>&#x25BE; click to view accounts</span></summary>
             $uDetailHtml
           </details>
         </td></tr>"
@@ -760,7 +760,7 @@ try {
     $cRow = if ($staleComps -gt 0) {
         "<tr><td class='td-label'>Stale Computer Accounts</td><td>
           <details class='stale-details'>
-            <summary class='stale-summary' aria-label='$($staleComps) stale computer accounts – click to expand'>$cBadge <span class='stale-hint' aria-hidden='true'>&#x25BE; click to view devices</span></summary>
+            <summary class='stale-summary' aria-label='$($staleComps) stale computer accounts - click to expand'>$cBadge <span class='stale-hint' aria-hidden='true'>&#x25BE; click to view devices</span></summary>
             $cDetailHtml
           </details>
         </td></tr>"
