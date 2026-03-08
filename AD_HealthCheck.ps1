@@ -29,19 +29,11 @@ $EventLogHours     = 2                           # How many hours back to scan e
 # Stale Object Threshold
 $StaleThresholdDays = 90                         # Days of inactivity before flagged stale
 
-# Alert Configuration
+# Output Settings
 # -- Status Summary File (saved next to the HTML report) --
 $EnableStatusFile       = $true                  # Write a plain-text status summary file alongside the HTML report
-# -- Windows Event Log (built-in, no network required) --
-$EnableEventLogAlert    = $true                  # Write findings to Windows Application Event Log
-$EventLogSource         = 'AD-HealthCheck'       # Event source name (auto-registered on first run)
-$EventLogName           = 'Application'          # Target log: Application | System
-$EventLogEventId        = 1000                   # Event ID written for critical findings
-# -- Microsoft Teams Webhook (optional) --
-$EnableTeamsAlert       = $false                 # Set $true and fill URL below to enable
-$TeamsWebhookUrl        = ''                     # Paste your Teams channel Incoming Webhook URL here
-# SECURITY NOTE: Store the webhook URL in a secrets vault or pass at runtime to avoid committing it.
 # ──────────────────────────────────────────────────────────────────────────────
+# NOTE: For email notifications, run AD_HealthCheck_EmailAlert.ps1 after this script.
 
 $ScriptVersion  = '1.0.0'
 $StartTime      = Get-Date
@@ -101,44 +93,7 @@ function Write-Progress2 {
     Write-Host "  [$(Get-Date -Format 'HH:mm:ss')] $msg" -ForegroundColor Cyan
 }
 
-function Write-ToEventLog {
-    # Writes a message to the Windows Application Event Log.
-    # No network connection required — always available on Windows Server.
-    param([string]$Message, [string]$EntryType = 'Warning')
-    try {
-        if (-not [System.Diagnostics.EventLog]::SourceExists($EventLogSource)) {
-            [System.Diagnostics.EventLog]::CreateEventSource($EventLogSource, $EventLogName)
-        }
-        Write-EventLog -LogName $EventLogName -Source $EventLogSource `
-            -EventId $EventLogEventId -EntryType $EntryType -Message $Message -ErrorAction Stop
-    } catch {
-        Write-Warning "EventLog write failed: $_"
-    }
-}
-
-function Send-TeamsAlert {
-    # Posts an Adaptive Card-style message to a Microsoft Teams channel via Incoming Webhook.
-    # Configure $TeamsWebhookUrl in the CONFIGURATION section above.
-    param([string]$Title, [string]$Body)
-    try {
-        $teamsBody = $Body -replace "`r`n", "`n"
-        # Build a simple MessageCard payload (works with all Teams Incoming Webhooks)
-        $payload = [ordered]@{
-            '@type'    = 'MessageCard'
-            '@context' = 'https://schema.org/extensions'
-            'summary'  = $Title
-            'themeColor' = 'da3633'
-            'title'    = $Title
-            'text'     = ($teamsBody -replace '\n', "<br>")
-        } | ConvertTo-Json -Depth 4
-        Invoke-RestMethod -Uri $TeamsWebhookUrl -Method Post `
-            -ContentType 'application/json' -Body $payload -ErrorAction Stop
-    } catch {
-        Write-Warning "Teams alert failed: $_"
-    }
-}
-
-# Collect critical findings for optional email
+# Collect critical findings throughout all sections
 $CriticalFindings = [System.Collections.Generic.List[string]]::new()
 
 # ── REPORTS FOLDER ────────────────────────────────────────────────────────────
@@ -215,9 +170,9 @@ try {
 }
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# SECTION 1  -  DOMAIN & FOREST INFO
+# SECTION 2  -  DOMAIN & FOREST INFO
 # ═══════════════════════════════════════════════════════════════════════════════
-Write-Progress2 "Section 1: Gathering Domain & Forest Info..."
+Write-Progress2 "Section 2: Gathering Domain & Forest Info..."
 $Sec1Html = ''
 try {
     if (-not $ADModuleAvailable) { throw "ActiveDirectory module not available." }
@@ -254,13 +209,13 @@ try {
 "@
 } catch {
     $Sec1Html = "<p class='error'>Error retrieving Domain/Forest info: $(HtmlEncode $_.Exception.Message)</p>"
-    $CriticalFindings.Add("Section 1  -  Domain/Forest Info error: $($_.Exception.Message)")
+    $CriticalFindings.Add("Section 2  -  Domain/Forest Info error: $($_.Exception.Message)")
 }
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# SECTION 2  -  DOMAIN CONTROLLER INVENTORY
+# SECTION 3  -  DOMAIN CONTROLLER INVENTORY
 # ═══════════════════════════════════════════════════════════════════════════════
-Write-Progress2 "Section 2: Domain Controller Inventory..."
+Write-Progress2 "Section 3: Domain Controller Inventory..."
 $Sec2Html   = ''
 $AllDCs     = @()
 $DCCount    = 0
@@ -296,13 +251,13 @@ try {
 "@
 } catch {
     $Sec2Html = "<p class='error'>Error retrieving DC Inventory: $(HtmlEncode $_.Exception.Message)</p>"
-    $CriticalFindings.Add("Section 2  -  DC Inventory error: $($_.Exception.Message)")
+    $CriticalFindings.Add("Section 3  -  DC Inventory error: $($_.Exception.Message)")
 }
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# SECTION 3  -  AD SERVICES STATUS PER DC
+# SECTION 4  -  AD SERVICES STATUS PER DC
 # ═══════════════════════════════════════════════════════════════════════════════
-Write-Progress2 "Section 3: AD Services Status per DC..."
+Write-Progress2 "Section 4: AD Services Status per DC..."
 $Sec3Html     = ''
 $ServicesToCheck = @('NTDS','NETLOGON','W32Time','DNS','KDC')
 try {
@@ -319,7 +274,7 @@ try {
                 } elseif ($s.Status -eq 'Running') {
                     "<td>$(StatusBadge 'Running' 'green')</td>"
                 } else {
-                    $CriticalFindings.Add("Section 3  -  DC $dcName service $svc is $($s.Status)")
+                    $CriticalFindings.Add("Section 4  -  DC $dcName service $svc is $($s.Status)")
                     "<td>$(StatusBadge $s.Status.ToString() 'red')</td>"
                 }
             } catch {
@@ -339,13 +294,13 @@ try {
 "@
 } catch {
     $Sec3Html = "<p class='error'>Error checking AD Services: $(HtmlEncode $_.Exception.Message)</p>"
-    $CriticalFindings.Add("Section 3  -  AD Services error: $($_.Exception.Message)")
+    $CriticalFindings.Add("Section 4  -  AD Services error: $($_.Exception.Message)")
 }
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# SECTION 4  -  REPLICATION HEALTH
+# SECTION 5  -  REPLICATION HEALTH
 # ═══════════════════════════════════════════════════════════════════════════════
-Write-Progress2 "Section 4: Replication Health..."
+Write-Progress2 "Section 5: Replication Health..."
 $Sec4Html = ''
 try {
     # repadmin /replsummary
@@ -362,7 +317,7 @@ try {
 
     # Detect failures
     $hasFailures = ($replSummaryText -match 'fail|error' -or $replShowText -match 'fail|error')
-    if ($hasFailures) { $CriticalFindings.Add("Section 4  -  Replication failures detected by repadmin.") }
+    if ($hasFailures) { $CriticalFindings.Add("Section 5  -  Replication failures detected by repadmin.") }
 
     $summaryEncoded = HtmlEncode $replSummaryText
     $showreplEncoded = HtmlEncode $replShowText
@@ -387,13 +342,13 @@ try {
 "@
 } catch {
     $Sec4Html = "<p class='error'>Error running repadmin: $(HtmlEncode $_.Exception.Message)</p>"
-    $CriticalFindings.Add("Section 4  -  Replication check error: $($_.Exception.Message)")
+    $CriticalFindings.Add("Section 5  -  Replication check error: $($_.Exception.Message)")
 }
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# SECTION 5  -  SYSVOL & NETLOGON SHARE
+# SECTION 6  -  SYSVOL & NETLOGON SHARE
 # ═══════════════════════════════════════════════════════════════════════════════
-Write-Progress2 "Section 5: SYSVOL & Netlogon Share..."
+Write-Progress2 "Section 6: SYSVOL & Netlogon Share..."
 $Sec5Html = ''
 try {
     if ($AllDCs.Count -eq 0) { throw "No Domain Controllers found." }
@@ -408,7 +363,7 @@ try {
                     $badge = StatusBadge 'Accessible' 'green'
                 } else {
                     $badge = StatusBadge 'Not Accessible' 'red'
-                    $CriticalFindings.Add("Section 5  -  $path is not accessible.")
+                    $CriticalFindings.Add("Section 6  -  $path is not accessible.")
                 }
             } catch {
                 $badge = StatusBadge 'Error' 'red'
@@ -427,13 +382,13 @@ try {
 "@
 } catch {
     $Sec5Html = "<p class='error'>Error checking SYSVOL/NETLOGON: $(HtmlEncode $_.Exception.Message)</p>"
-    $CriticalFindings.Add("Section 5  -  SYSVOL/NETLOGON error: $($_.Exception.Message)")
+    $CriticalFindings.Add("Section 6  -  SYSVOL/NETLOGON error: $($_.Exception.Message)")
 }
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# SECTION 6  -  DNS HEALTH
+# SECTION 7  -  DNS HEALTH
 # ═══════════════════════════════════════════════════════════════════════════════
-Write-Progress2 "Section 6: DNS Health..."
+Write-Progress2 "Section 7: DNS Health..."
 $Sec6Html = ''
 try {
     if (-not $ADModuleAvailable) { throw "ActiveDirectory module not available." }
@@ -447,7 +402,7 @@ try {
         $srvResult = StatusBadge 'Resolved' 'green'
     } catch {
         $srvResult = StatusBadge 'Failed' 'red'
-        $CriticalFindings.Add("Section 6  -  DNS SRV record $srvRecord could not be resolved.")
+        $CriticalFindings.Add("Section 7  -  DNS SRV record $srvRecord could not be resolved.")
     }
 
     # DNS Zones
@@ -498,13 +453,13 @@ $forwardersHtml
 "@
 } catch {
     $Sec6Html = "<p class='error'>Error checking DNS Health: $(HtmlEncode $_.Exception.Message)</p>"
-    $CriticalFindings.Add("Section 6  -  DNS Health error: $($_.Exception.Message)")
+    $CriticalFindings.Add("Section 7  -  DNS Health error: $($_.Exception.Message)")
 }
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# SECTION 7  -  FSMO ROLE HOLDERS
+# SECTION 8  -  FSMO ROLE HOLDERS
 # ═══════════════════════════════════════════════════════════════════════════════
-Write-Progress2 "Section 7: FSMO Role Holders..."
+Write-Progress2 "Section 8: FSMO Role Holders..."
 $Sec7Html = ''
 try {
     if (-not $ADModuleAvailable) { throw "ActiveDirectory module not available." }
@@ -526,7 +481,7 @@ try {
             $reachable = Test-Connection -ComputerName $holder -Count 1 -Quiet -ErrorAction SilentlyContinue
         } catch {}
         $badge = if ($reachable) { StatusBadge 'Reachable' 'green' } else {
-            $CriticalFindings.Add("Section 7  -  FSMO $($r.Role) holder $holder is unreachable.")
+            $CriticalFindings.Add("Section 8  -  FSMO $($r.Role) holder $holder is unreachable.")
             StatusBadge 'Unreachable' 'red'
         }
         "<tr><td>$(HtmlEncode $r.Role)</td><td>$(HtmlEncode $holder)</td><td>$badge</td></tr>"
@@ -542,13 +497,13 @@ try {
 "@
 } catch {
     $Sec7Html = "<p class='error'>Error checking FSMO Roles: $(HtmlEncode $_.Exception.Message)</p>"
-    $CriticalFindings.Add("Section 7  -  FSMO check error: $($_.Exception.Message)")
+    $CriticalFindings.Add("Section 8  -  FSMO check error: $($_.Exception.Message)")
 }
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# SECTION 8  -  AD TRUST RELATIONSHIPS
+# SECTION 9  -  AD TRUST RELATIONSHIPS
 # ═══════════════════════════════════════════════════════════════════════════════
-Write-Progress2 "Section 8: AD Trust Relationships..."
+Write-Progress2 "Section 9: AD Trust Relationships..."
 $Sec8Html = ''
 try {
     if (-not $ADModuleAvailable) { throw "ActiveDirectory module not available." }
@@ -577,9 +532,9 @@ try {
 }
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# SECTION 9  -  AD TOMBSTONE & RECYCLE BIN
+# SECTION 10  -  AD TOMBSTONE & RECYCLE BIN
 # ═══════════════════════════════════════════════════════════════════════════════
-Write-Progress2 "Section 9: Tombstone Lifetime & Recycle Bin..."
+Write-Progress2 "Section 10: Tombstone Lifetime & Recycle Bin..."
 $Sec9Html = ''
 try {
     if (-not $ADModuleAvailable) { throw "ActiveDirectory module not available." }
@@ -611,9 +566,9 @@ try {
 }
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# SECTION 10  -  PRIVILEGED ACCOUNT AUDIT
+# SECTION 11  -  PRIVILEGED ACCOUNT AUDIT
 # ═══════════════════════════════════════════════════════════════════════════════
-Write-Progress2 "Section 10: Privileged Account Audit..."
+Write-Progress2 "Section 11: Privileged Account Audit..."
 $Sec10Html = ''
 try {
     if (-not $ADModuleAvailable) { throw "ActiveDirectory module not available." }
@@ -654,9 +609,9 @@ try {
 }
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# SECTION 11  -  PASSWORD POLICY
+# SECTION 12  -  PASSWORD POLICY
 # ═══════════════════════════════════════════════════════════════════════════════
-Write-Progress2 "Section 11: Default Domain Password Policy..."
+Write-Progress2 "Section 12: Default Domain Password Policy..."
 $Sec11Html = ''
 try {
     if (-not $ADModuleAvailable) { throw "ActiveDirectory module not available." }
@@ -681,9 +636,9 @@ try {
 }
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# SECTION 12  -  STALE OBJECTS
+# SECTION 13  -  STALE OBJECTS
 # ═══════════════════════════════════════════════════════════════════════════════
-Write-Progress2 "Section 12: Stale Objects..."
+Write-Progress2 "Section 13: Stale Objects..."
 $Sec12Html = ''
 try {
     if (-not $ADModuleAvailable) { throw "ActiveDirectory module not available." }
@@ -726,9 +681,9 @@ try {
 }
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# SECTION 13  -  DIRECTORY SERVICE EVENT LOG
+# SECTION 14  -  DIRECTORY SERVICE EVENT LOG
 # ═══════════════════════════════════════════════════════════════════════════════
-Write-Progress2 "Section 13: Directory Service Event Log..."
+Write-Progress2 "Section 14: Directory Service Event Log..."
 $Sec13Html = ''
 
 # Map of known AD Event IDs to suggestions/impact
@@ -783,7 +738,7 @@ try {
                 $suggestion = if ($advisory) { $advisory.Suggestion } else { 'Review event details and correlate with recent changes.' }
 
                 if ($impact -eq 'Critical') {
-                    $CriticalFindings.Add("Section 13 - CRITICAL event $($ev.Id) on ${dcName}: $(TruncateMessage $rawMsg 100)")
+                    $CriticalFindings.Add("Section 14 - CRITICAL event $($ev.Id) on ${dcName}: $(TruncateMessage $rawMsg 100)")
                 }
 
                 $rowClass = switch ($impact) {
@@ -831,13 +786,13 @@ try {
     }
 } catch {
     $Sec13Html = "<p class='error'>Error reading Directory Service Event Log: $(HtmlEncode $_.Exception.Message)</p>"
-    $CriticalFindings.Add("Section 13  -  Event Log error: $($_.Exception.Message)")
+    $CriticalFindings.Add("Section 14  -  Event Log error: $($_.Exception.Message)")
 }
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# SECTION 14  -  WINDOWS UPDATE STATUS
+# SECTION 15  -  WINDOWS UPDATE STATUS
 # ═══════════════════════════════════════════════════════════════════════════════
-Write-Progress2 "Section 14: Windows Update Status..."
+Write-Progress2 "Section 15: Windows Update Status..."
 $Sec14Html = ''
 try {
     if ($AllDCs.Count -eq 0) { throw "No Domain Controllers found." }
@@ -901,7 +856,7 @@ try {
                         default     { StatusBadge $u.Severity 'grey'   }
                     }
                     if ($u.Severity -in @('Critical','Important')) {
-                        $CriticalFindings.Add("Section 14  -  DC $dcName has pending $($u.Severity) update: $($u.Title)")
+                        $CriticalFindings.Add("Section 15  -  DC $dcName has pending $($u.Severity) update: $($u.Title)")
                     }
                     "<tr><td>$(HtmlEncode $u.Title)</td><td>$sevBadge</td></tr>"
                 }
@@ -937,7 +892,7 @@ try {
     $Sec14Html = $allDCUpdateHtml -join ''
 } catch {
     $Sec14Html = "<p class='error'>Error checking Windows Update Status: $(HtmlEncode $_.Exception.Message)</p>"
-    $CriticalFindings.Add("Section 14  -  Windows Update check error: $($_.Exception.Message)")
+    $CriticalFindings.Add("Section 15  -  Windows Update check error: $($_.Exception.Message)")
 }
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -1337,32 +1292,6 @@ if ($EnableStatusFile) {
     }
 }
 
-# ═══════════════════════════════════════════════════════════════════════════════
-# ALERT NOTIFICATIONS
-# ═══════════════════════════════════════════════════════════════════════════════
-$alertTitle = if ($isCritical) {
-    "AD Health Check - CRITICAL ALERT [$domainName]"
-} else {
-    "AD Health Check - Healthy State [$domainName] $(Get-Date -Format 'yyyy-MM-dd HH:mm')"
-}
-
-$alertBody = $statusContent
-
-# -- Windows Event Log --
-if ($EnableEventLogAlert) {
-    Write-Progress2 "Writing findings to Windows Event Log ($EventLogName)..."
-    $evtType = if ($isCritical) { 'Warning' } else { 'Information' }
-    Write-ToEventLog -Message $alertBody -EntryType $evtType
-    Write-Host "  [OK] Event written to $EventLogName log (Source: $EventLogSource, EventId: $EventLogEventId)" -ForegroundColor Green
-}
-
-# -- Microsoft Teams Webhook --
-if ($EnableTeamsAlert -and -not [string]::IsNullOrWhiteSpace($TeamsWebhookUrl)) {
-    Write-Progress2 "Sending Teams notification..."
-    Send-TeamsAlert -Title $alertTitle -Body $alertBody
-    Write-Host "  [OK] Teams notification sent." -ForegroundColor Green
-}
-
 Write-Host ""
 Write-Host "===============================================================" -ForegroundColor DarkCyan
 Write-Host "  AD Health Check complete.  Duration: $Duration" -ForegroundColor DarkCyan
@@ -1370,6 +1299,8 @@ Write-Host "  Report     : $ReportFile"  -ForegroundColor Yellow
 if ($EnableStatusFile) {
     $statusLabel = if ($isCritical) { 'Status (CRITICAL)' } else { 'Status (HEALTHY)' }
     Write-Host "  $statusLabel : $StatusFile" -ForegroundColor $(if ($isCritical) { 'Red' } else { 'Green' })
+    Write-Host ""
+    Write-Host "  To send email alerts, run: .\AD_HealthCheck_EmailAlert.ps1  (configure SMTP settings inside first)" -ForegroundColor Cyan
 }
 Write-Host "===============================================================" -ForegroundColor DarkCyan
 Write-Host ""
