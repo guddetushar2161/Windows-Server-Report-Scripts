@@ -30,6 +30,8 @@ $EventLogHours     = 2                           # How many hours back to scan e
 $StaleThresholdDays = 90                         # Days of inactivity before flagged stale
 
 # Alert Configuration
+# -- Status Summary File (saved next to the HTML report) --
+$EnableStatusFile       = $true                  # Write a plain-text status summary file alongside the HTML report
 # -- Windows Event Log (built-in, no network required) --
 $EnableEventLogAlert    = $true                  # Write findings to Windows Application Event Log
 $EventLogSource         = 'AD-HealthCheck'       # Event source name (auto-registered on first run)
@@ -146,6 +148,8 @@ if (-not (Test-Path $ReportsDir)) {
     catch { Write-Warning "Could not create Reports folder: $_" }
 }
 $ReportFile = Join-Path $ReportsDir ("AD_Health_{0}.html" -f (Get-Date -Format 'yyyyMMdd_HHmmss'))
+# Status summary file path — suffix determined after health evaluation (_HEALTHY or _CRITICAL)
+$ReportStamp = [System.IO.Path]::GetFileNameWithoutExtension($ReportFile) # e.g. AD_Health_20260308_181050
 
 # ── IMPORT ACTIVE DIRECTORY MODULE ───────────────────────────────────────────
 $ADModuleAvailable = $false
@@ -1273,34 +1277,81 @@ try {
 }
 
 # ═══════════════════════════════════════════════════════════════════════════════
+# STATUS SUMMARY FILE  (plain-text companion — _HEALTHY.txt or _CRITICAL.txt)
+# ═══════════════════════════════════════════════════════════════════════════════
+$isCritical   = $CriticalFindings.Count -gt 0
+$statusSuffix = if ($isCritical) { '_CRITICAL' } else { '_HEALTHY' }
+$StatusFile   = Join-Path $ReportsDir ($ReportStamp + $statusSuffix + '.txt')
+
+$separator = '=' * 70
+
+if ($isCritical) {
+    $statusContent  = "$separator`r`n"
+    $statusContent += " AD HEALTH CHECK  -  *** CRITICAL ALERT ***`r`n"
+    $statusContent += "$separator`r`n"
+    $statusContent += " Status       : CRITICAL`r`n"
+    $statusContent += " Domain       : $domainName`r`n"
+    $statusContent += " Forest Level : $forestLevel`r`n"
+    $statusContent += " Total DCs    : $DCCount`r`n"
+    $statusContent += " Generated    : $ReportDate`r`n"
+    $statusContent += " Duration     : $Duration`r`n"
+    $statusContent += "$separator`r`n"
+    $statusContent += "`r`n CRITICAL FINDINGS ($($CriticalFindings.Count)):`r`n`r`n"
+    $statusContent += (@($CriticalFindings) | ForEach-Object { "  [!] $_" }) -join "`r`n"
+    $statusContent += "`r`n`r`n$separator`r`n"
+    $statusContent += " Full HTML report : $ReportFile`r`n"
+    $statusContent += " Status file      : $StatusFile`r`n"
+    $statusContent += "$separator`r`n"
+    $statusContent += " AD Health Check v$ScriptVersion  by $AuthorName`r`n"
+    $statusContent += "$separator`r`n"
+} else {
+    $statusContent  = "$separator`r`n"
+    $statusContent += " AD HEALTH CHECK  -  HEALTHY STATE`r`n"
+    $statusContent += "$separator`r`n"
+    $statusContent += " Status       : HEALTHY`r`n"
+    $statusContent += " Domain       : $domainName`r`n"
+    $statusContent += " Forest Level : $forestLevel`r`n"
+    $statusContent += " Total DCs    : $DCCount`r`n"
+    $statusContent += " Generated    : $ReportDate`r`n"
+    $statusContent += " Duration     : $Duration`r`n"
+    $statusContent += "$separator`r`n"
+    $statusContent += "`r`n No critical findings, errors, or warnings were detected.`r`n"
+    $statusContent += " Your Active Directory environment is in a healthy state.`r`n"
+    $statusContent += "`r`n$separator`r`n"
+    $statusContent += " Full HTML report : $ReportFile`r`n"
+    $statusContent += " Status file      : $StatusFile`r`n"
+    $statusContent += "$separator`r`n"
+    $statusContent += " AD Health Check v$ScriptVersion  by $AuthorName`r`n"
+    $statusContent += "$separator`r`n"
+}
+
+if ($EnableStatusFile) {
+    try {
+        # CRLF line endings are intentional: this is a Windows Server script and .txt files
+        # opened in Notepad/Explorer display correctly with CRLF. Consistent with HTML report write.
+        [System.IO.File]::WriteAllText($StatusFile, $statusContent, [System.Text.Encoding]::UTF8)
+        $statusColor = if ($isCritical) { 'Red' } else { 'Green' }
+        Write-Host "  [OK] Status file saved to: $StatusFile" -ForegroundColor $statusColor
+    } catch {
+        Write-Warning "Failed to write status file: $_"
+    }
+}
+
+# ═══════════════════════════════════════════════════════════════════════════════
 # ALERT NOTIFICATIONS
 # ═══════════════════════════════════════════════════════════════════════════════
-$alertTitle = if ($CriticalFindings.Count -gt 0) {
+$alertTitle = if ($isCritical) {
     "AD Health Check - CRITICAL ALERT [$domainName]"
 } else {
     "AD Health Check - Healthy State [$domainName] $(Get-Date -Format 'yyyy-MM-dd HH:mm')"
 }
 
-$alertBody  = if ($CriticalFindings.Count -gt 0) {
-    "Active Directory Health Check detected $($CriticalFindings.Count) critical finding(s):`r`n`r`n" +
-    (($CriticalFindings | ForEach-Object { "• $_" }) -join "`r`n") +
-    "`r`n`r`nPlease review the full report: $ReportFile`r`n`r`n-- AD Health Check v$ScriptVersion by $AuthorName"
-} else {
-    "Active Directory Health Check completed successfully.`r`n`r`n" +
-    "STATUS: Your AD environment is in a HEALTHY STATE.`r`n" +
-    "No critical findings, errors, or warnings were detected.`r`n`r`n" +
-    "Domain      : $domainName`r`n" +
-    "Forest Level: $forestLevel`r`n" +
-    "Total DCs   : $DCCount`r`n" +
-    "Generated   : $ReportDate`r`n" +
-    "Duration    : $Duration`r`n`r`n" +
-    "Full report saved to: $ReportFile`r`n`r`n-- AD Health Check v$ScriptVersion by $AuthorName"
-}
+$alertBody = $statusContent
 
 # -- Windows Event Log --
 if ($EnableEventLogAlert) {
     Write-Progress2 "Writing findings to Windows Event Log ($EventLogName)..."
-    $evtType = if ($CriticalFindings.Count -gt 0) { 'Warning' } else { 'Information' }
+    $evtType = if ($isCritical) { 'Warning' } else { 'Information' }
     Write-ToEventLog -Message $alertBody -EntryType $evtType
     Write-Host "  [OK] Event written to $EventLogName log (Source: $EventLogSource, EventId: $EventLogEventId)" -ForegroundColor Green
 }
@@ -1315,6 +1366,10 @@ if ($EnableTeamsAlert -and -not [string]::IsNullOrWhiteSpace($TeamsWebhookUrl)) 
 Write-Host ""
 Write-Host "===============================================================" -ForegroundColor DarkCyan
 Write-Host "  AD Health Check complete.  Duration: $Duration" -ForegroundColor DarkCyan
-Write-Host "  Report: $ReportFile"                             -ForegroundColor Yellow
+Write-Host "  Report     : $ReportFile"  -ForegroundColor Yellow
+if ($EnableStatusFile) {
+    $statusLabel = if ($isCritical) { 'Status (CRITICAL)' } else { 'Status (HEALTHY)' }
+    Write-Host "  $statusLabel : $StatusFile" -ForegroundColor $(if ($isCritical) { 'Red' } else { 'Green' })
+}
 Write-Host "===============================================================" -ForegroundColor DarkCyan
 Write-Host ""
