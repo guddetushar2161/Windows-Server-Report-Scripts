@@ -1,4 +1,4 @@
-successfully downloaded text file (SHA: 1ec6df7b012d09084230f888103c27860487843f)#Requires -Version 5.1
+#Requires -Version 5.1
 <#
 .SYNOPSIS
     Comprehensive Active Directory Health Check Script
@@ -63,6 +63,25 @@ function TruncateMessage {
     return $text
 }
 
+function ConvertADMode {
+    # Converts raw ADForestMode/ADDomainMode enum strings to human-readable names.
+    param([string]$raw)
+    if ([string]::IsNullOrEmpty($raw)) { return 'Unknown' }
+    switch -Regex ($raw) {
+        'Windows2000'        { return 'Windows 2000' }
+        'Windows2003Interim' { return 'Windows Server 2003 Interim' }
+        'Windows2003'        { return 'Windows Server 2003' }
+        'Windows2008R2'      { return 'Windows Server 2008 R2' }
+        'Windows2008'        { return 'Windows Server 2008' }
+        'Windows2012R2'      { return 'Windows Server 2012 R2' }
+        'Windows2012'        { return 'Windows Server 2012' }
+        'Windows2016'        { return 'Windows Server 2016' }
+        'Windows2019'        { return 'Windows Server 2019' }
+        'Windows2025'        { return 'Windows Server 2025' }
+        default              { return $raw }
+    }
+}
+
 function StatusBadge {
     param([string]$text, [string]$color)
     # color: green | yellow | red | blue | grey
@@ -124,15 +143,15 @@ try {
         @('NetBIOS Name',           (HtmlEncode $domain.NetBIOSName))
         @('Domain DN',              (HtmlEncode $domain.DistinguishedName))
         @('Forest Name',            (HtmlEncode $forest.Name))
-        @('Forest Functional Level',(HtmlEncode $forest.ForestMode.ToString()))
-        @('Domain Functional Level',(HtmlEncode $domain.DomainMode.ToString()))
-        @('PDC Emulator',           (HtmlEncode $domain.PDCEmulator))
-        @('RID Master',             (HtmlEncode $domain.RIDMaster))
-        @('Infrastructure Master',  (HtmlEncode $domain.InfrastructureMaster))
-        @('Schema Master',          (HtmlEncode $forest.SchemaMaster))
-        @('Domain Naming Master',   (HtmlEncode $forest.DomainNamingMaster))
-        @('Domains in Forest',      (HtmlEncode ($forest.Domains -join ', ')))
-        @('Sites',                  (HtmlEncode ($forest.Sites -join ', ')))
+        @('Forest Functional Level',(HtmlEncode (ConvertADMode ([string]$forest.ForestMode))))
+        @('Domain Functional Level',(HtmlEncode (ConvertADMode ([string]$domain.DomainMode))))
+        @('PDC Emulator',           (HtmlEncode ([string]$domain.PDCEmulator)))
+        @('RID Master',             (HtmlEncode ([string]$domain.RIDMaster)))
+        @('Infrastructure Master',  (HtmlEncode ([string]$domain.InfrastructureMaster)))
+        @('Schema Master',          (HtmlEncode ([string]$forest.SchemaMaster)))
+        @('Domain Naming Master',   (HtmlEncode ([string]$forest.DomainNamingMaster)))
+        @('Domains in Forest',      (HtmlEncode (if ($forest.Domains) { @($forest.Domains) -join ', ' } else { 'N/A' })))
+        @('Sites',                  (HtmlEncode (if ($forest.Sites)   { @($forest.Sites)   -join ', ' } else { 'N/A' })))
     )
 
     $rowsHtml = ($rows | ForEach-Object {
@@ -639,7 +658,8 @@ $EventAdvisory = @{
 try {
     if ($AllDCs.Count -eq 0) { throw "No Domain Controllers found." }
     $eventSince = (Get-Date).AddHours(-$EventLogHours)
-    $allEventRows = [System.Collections.Generic.List[string]]::new()
+    $allEventRows  = [System.Collections.Generic.List[string]]::new()
+    $eventRowCount = 0   # count only actual event rows (not error placeholder rows)
 
     foreach ($dc in $AllDCs) {
         $dcName = $dc.Name
@@ -669,7 +689,7 @@ try {
                 $safeDC   = HtmlEncode $dcName
 
                 # Impact & Suggestion
-                $advisory = $EventAdvisory[$ev.Id]
+                $advisory   = $EventAdvisory[[int]$ev.Id]
                 $impact     = if ($advisory) { $advisory.Impact }     else { $level }
                 $suggestion = if ($advisory) { $advisory.Suggestion } else { 'Review event details and correlate with recent changes.' }
 
@@ -678,10 +698,10 @@ try {
                 }
 
                 $rowClass = switch ($impact) {
-                    'Critical'      { 'row-critical' }
-                    'Error'         { 'row-error'    }
-                    'Warning'       { 'row-warning'  }
-                    default         { ''              }
+                    'Critical' { 'row-critical' }
+                    'Error'    { 'row-error'    }
+                    'Warning'  { 'row-warning'  }
+                    default    { ''             }
                 }
 
                 $impactBadge = switch ($impact) {
@@ -691,18 +711,12 @@ try {
                     default    { StatusBadge 'Informational'                         'blue'   }
                 }
 
-                $allEventRows.Add(@"
-<tr class='$rowClass'>
-  <td>$safeDC</td>
-  <td>$safeTime</td>
-  <td>$(HtmlEncode $level)</td>
-  <td>$safeId</td>
-  <td>$safeSrc</td>
-  <td>$safeMsg</td>
-  <td>$impactBadge</td>
-  <td>$(HtmlEncode $suggestion)</td>
-</tr>
-"@)
+                $safeImpact = HtmlEncode $impact
+                $safeSugg   = HtmlEncode $suggestion
+                $safeLevel  = HtmlEncode $level
+
+                $allEventRows.Add("<tr class='$rowClass'><td>$safeDC</td><td>$safeTime</td><td>$safeLevel</td><td>$safeId</td><td>$safeSrc</td><td>$safeMsg</td><td>$impactBadge</td><td>$safeSugg</td></tr>")
+                $eventRowCount++
             }
         } catch {
             $allEventRows.Add("<tr><td colspan='8'><em class='warn'>$(HtmlEncode $dcName) - Error: $(HtmlEncode $_.Exception.Message)</em></td></tr>")
@@ -712,10 +726,11 @@ try {
     if ($allEventRows.Count -eq 0) {
         $Sec13Html = "<p class='info'>No Warning/Error/Critical events found in the last $EventLogHours hour(s) on any DC.</p>"
     } else {
+        $countLabel = if ($eventRowCount -gt 0) { "$eventRowCount event(s)" } else { "No events found - see DC connection errors below" }
         $Sec13Html = @"
-<p>Scanning last <strong>$EventLogHours hour(s)</strong> on all DCs. Found <strong>$($allEventRows.Count)</strong> event(s).</p>
+<p>Scanning last <strong>$EventLogHours hour(s)</strong> on all DCs. Found <strong>$countLabel</strong>.</p>
 <div class='table-wrap'>
-<table>
+<table class='event-table'>
   <thead><tr>
     <th>DC</th><th>Time</th><th>Level</th><th>Event ID</th>
     <th>Source</th><th>Message</th><th>Impact</th><th>Suggestion</th>
@@ -843,8 +858,8 @@ $domainName = ''
 $forestLevel = ''
 try {
     if ($ADModuleAvailable) {
-        $domainName  = (Get-ADDomain -ErrorAction SilentlyContinue).DNSRoot
-        $forestLevel = (Get-ADForest -ErrorAction SilentlyContinue).ForestMode.ToString()
+        $domainName  = [string](Get-ADDomain -ErrorAction SilentlyContinue).DNSRoot
+        $forestLevel = ConvertADMode ([string](Get-ADForest -ErrorAction SilentlyContinue).ForestMode)
     }
 } catch {}
 
@@ -1034,6 +1049,14 @@ tbody tr:hover { background: var(--th-bg); }
               Consolas, monospace; white-space: pre; color: var(--text); line-height: 1.5; }
 .repl-fail  { color: #f85149; font-weight: 600; }
 
+/* ── EVENT LOG TABLE  -  constrain wide message/suggestion columns ── */
+.event-table td:nth-child(6),
+.event-table td:nth-child(8) {
+  max-width: 280px;
+  word-break: break-word;
+  white-space: normal;
+}
+
 /* ── MESSAGE CLASSES ── */
 .error { color: #f85149; padding: 8px 12px; background: rgba(248,81,73,.1);
          border-left: 3px solid #f85149; border-radius: 4px; }
@@ -1189,7 +1212,42 @@ if ($EnableEmailAlert -and $CriticalFindings.Count -gt 0) {
         Write-Warning "Failed to send alert email: $_"
     }
 } elseif ($EnableEmailAlert -and $CriticalFindings.Count -eq 0) {
-    Write-Progress2 "No critical findings - email alert skipped."
+    Write-Progress2 "No critical findings - sending healthy state notification..."
+    try {
+        $healthySubject = "AD Health Check - AD is in Healthy State [$domainName] $(Get-Date -Format 'yyyy-MM-dd HH:mm')"
+        $healthyBody  = "Active Directory Health Check completed successfully.`r`n`r`n"
+        $healthyBody += "STATUS: Your AD environment is in a HEALTHY STATE.`r`n"
+        $healthyBody += "No critical findings, errors, or warnings were detected.`r`n`r`n"
+        $healthyBody += "Domain      : $domainName`r`n"
+        $healthyBody += "Forest Level: $forestLevel`r`n"
+        $healthyBody += "Total DCs   : $DCCount`r`n"
+        $healthyBody += "Generated   : $ReportDate`r`n"
+        $healthyBody += "Duration    : $Duration`r`n`r`n"
+        $healthyBody += "Full report saved to: $ReportFile`r`n`r`n"
+        $healthyBody += "-- AD Health Check v$ScriptVersion by $AuthorName"
+
+        $mailParams = @{
+            SmtpServer  = $SMTPServer
+            Port        = $SMTPPort
+            From        = $SMTPFrom
+            To          = $SMTPTo
+            Subject     = $healthySubject
+            Body        = $healthyBody
+            UseSsl      = $SMTPUseSSL
+            ErrorAction = 'Stop'
+        }
+
+        if (-not [string]::IsNullOrWhiteSpace($SMTPCredentialUser)) {
+            $secPass   = ConvertTo-SecureString $SMTPCredentialPass -AsPlainText -Force
+            $cred      = New-Object System.Management.Automation.PSCredential($SMTPCredentialUser, $secPass)
+            $mailParams['Credential'] = $cred
+        }
+
+        Send-MailMessage @mailParams
+        Write-Host "  [OK] Healthy state notification sent to: $($SMTPTo -join ', ')" -ForegroundColor Green
+    } catch {
+        Write-Warning "Failed to send healthy state notification: $_"
+    }
 }
 
 Write-Host ""
