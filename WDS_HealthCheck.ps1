@@ -60,10 +60,16 @@ $ScriptStart    = Get-Date
 $ServerHostname = $env:COMPUTERNAME
 $ReportDate     = $ScriptStart.ToString('yyyy-MM-dd HH:mm:ss')
 
-$ScriptDir  = if ($PSScriptRoot) { $PSScriptRoot } else { Split-Path -Parent $MyInvocation.MyCommand.Definition }
-$Stamp      = $ScriptStart.ToString('yyyyMMdd_HHmmss')
-$ReportFile = Join-Path $ScriptDir "WDS_Health_${ServerHostname}_${Stamp}.html"
-$StatusFile = Join-Path $ScriptDir "WDS_Health_${ServerHostname}_${Stamp}.status"
+$ScriptDir   = if ($PSScriptRoot) { $PSScriptRoot } else { Split-Path -Parent $MyInvocation.MyCommand.Definition }
+if ([string]::IsNullOrEmpty($ScriptDir)) { $ScriptDir = $PWD.Path }
+
+$ReportsDir  = Join-Path $ScriptDir 'Reports'
+if (-not (Test-Path $ReportsDir)) {
+    $null = New-Item -ItemType Directory -Path $ReportsDir -Force -ErrorAction SilentlyContinue
+}
+
+$ReportStamp = 'WDS_Health_{0}_{1}' -f $ServerHostname, (Get-Date -Format 'yyyyMMdd_HHmmss')
+$ReportFile  = Join-Path $ReportsDir ($ReportStamp + '.html')
 
 $CriticalFindings = [System.Collections.Generic.List[string]]::new()
 
@@ -1161,14 +1167,17 @@ $HtmlBody += @"
 try {
     [System.IO.File]::WriteAllText($ReportFile, $HtmlBody, [System.Text.Encoding]::UTF8)
     Write-Host ""
-    Write-Host "  [OK] Report written: $ReportFile" -ForegroundColor Green
+    Write-Host "  [OK] Report saved to: $ReportFile" -ForegroundColor Green
 } catch {
     Write-Warning "Failed to write HTML report: $_"
 }
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  STATUS FILE
+#  STATUS SUMMARY FILE  (_HEALTHY.txt or _CRITICAL.txt)
 # ══════════════════════════════════════════════════════════════════════════════
+$statusSuffix = if ($isCritical) { '_CRITICAL' } else { '_HEALTHY' }
+$StatusFile   = Join-Path $ReportsDir ($ReportStamp + $statusSuffix + '.txt')
+
 $sep = '=' * 62
 if ($isCritical) {
     $sc  = "$sep`r`n WDS HEALTH CHECK  -  *** CRITICAL ALERT ***`r`n$sep`r`n"
@@ -1191,7 +1200,7 @@ if ($EnableStatusFile) {
     try {
         [System.IO.File]::WriteAllText($StatusFile, $sc, [System.Text.Encoding]::UTF8)
         $sColor = if ($isCritical) { 'Red' } else { 'Green' }
-        Write-Host "  [OK] Status file: $StatusFile" -ForegroundColor $sColor
+        Write-Host "  [OK] Status file saved to: $StatusFile" -ForegroundColor $sColor
     } catch {
         Write-Warning "Failed to write status file: $_"
     }
@@ -1200,12 +1209,12 @@ if ($EnableStatusFile) {
 Write-Host ""
 Write-Host "================================================================" -ForegroundColor DarkCyan
 Write-Host "  WDS Health Check complete.  Duration: $Duration" -ForegroundColor DarkCyan
-Write-Host "  Report : $ReportFile" -ForegroundColor Yellow
+Write-Host "  Report     : $ReportFile" -ForegroundColor Yellow
 if ($EnableStatusFile) {
     $slabel = if ($isCritical) { 'Status (CRITICAL)' } else { 'Status (HEALTHY)' }
     Write-Host "  $slabel : $StatusFile" -ForegroundColor $(if ($isCritical) { 'Red' } else { 'Green' })
     Write-Host ""
-    Write-Host "  Review the HTML report and address any critical findings." -ForegroundColor Cyan
+    Write-Host "  To send email alerts, run: .\WDS_HealthCheck_EmailAlert.ps1" -ForegroundColor Cyan
 }
 Write-Host "================================================================" -ForegroundColor DarkCyan
 Write-Host ""
