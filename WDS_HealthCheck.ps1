@@ -263,6 +263,51 @@ try {
 }
 
 # ══════════════════════════════════════════════════════════════════════════════
+#  SECTION 0 - Server Details
+# ══════════════════════════════════════════════════════════════════════════════
+Write-Host "  [0/16] Server Details..." -ForegroundColor Gray
+$Sec0Html = ''
+try {
+    $cs   = Get-CimInstance Win32_ComputerSystem  -ErrorAction Stop
+    $bios = Get-CimInstance Win32_BIOS            -ErrorAction Stop
+    $os   = Get-CimInstance Win32_OperatingSystem -ErrorAction Stop
+    $cpu  = @(Get-CimInstance Win32_Processor     -ErrorAction Stop)
+
+    $totalRAM_GB = [math]::Round($cs.TotalPhysicalMemory / 1GB, 2)
+    $isVirtual   = ($cs.Model        -match 'Virtual|VMware|VirtualBox|QEMU|KVM|Xen|HVM') -or
+                   ($cs.Manufacturer -match 'VMware|QEMU|Xen|Parallels|innotek') -or
+                   ($cs.Manufacturer -eq 'Microsoft Corporation' -and $cs.Model -match 'Virtual')
+    $serverTypeBadge = if ($isVirtual) { Get-StatusBadge 'Virtual Machine' 'blue' } else { Get-StatusBadge 'Physical Server' 'green' }
+    $cpuNames    = ($cpu | ForEach-Object {
+        $n = if ($null -ne $_.Name) { $_.Name.Trim() } else { 'Unknown' }
+        [System.Web.HttpUtility]::HtmlEncode($n)
+    } | Select-Object -Unique) -join '; '
+
+    $installDate  = if ($null -ne $os.InstallDate)    { $os.InstallDate.ToString('yyyy-MM-dd')             } else { 'N/A' }
+    $lastBootTime = if ($null -ne $os.LastBootUpTime) { $os.LastBootUpTime.ToString('yyyy-MM-dd HH:mm:ss') } else { 'N/A' }
+
+    $Sec0Html = @"
+<div class="kv">
+  <span class="k">Hostname</span>        <span class="v">$([System.Web.HttpUtility]::HtmlEncode($cs.Name))</span>
+  <span class="k">Manufacturer</span>    <span class="v">$([System.Web.HttpUtility]::HtmlEncode($cs.Manufacturer))</span>
+  <span class="k">Model</span>           <span class="v">$([System.Web.HttpUtility]::HtmlEncode($cs.Model))</span>
+  <span class="k">Server Type</span>     <span class="v">$serverTypeBadge</span>
+  <span class="k">Serial Number</span>   <span class="v">$([System.Web.HttpUtility]::HtmlEncode($bios.SerialNumber))</span>
+  <span class="k">BIOS Version</span>    <span class="v">$([System.Web.HttpUtility]::HtmlEncode($bios.SMBIOSBIOSVersion))</span>
+  <span class="k">Processors</span>      <span class="v">$($cpu.Count) x $cpuNames</span>
+  <span class="k">Total RAM</span>       <span class="v">$totalRAM_GB GB</span>
+  <span class="k">OS Name</span>         <span class="v">$([System.Web.HttpUtility]::HtmlEncode($os.Caption))</span>
+  <span class="k">OS Version</span>      <span class="v">$([System.Web.HttpUtility]::HtmlEncode($os.Version))</span>
+  <span class="k">OS Build</span>        <span class="v">$([System.Web.HttpUtility]::HtmlEncode($os.BuildNumber))</span>
+  <span class="k">OS Install Date</span> <span class="v">$([System.Web.HttpUtility]::HtmlEncode($installDate))</span>
+  <span class="k">Last Boot Time</span>  <span class="v">$([System.Web.HttpUtility]::HtmlEncode($lastBootTime))</span>
+</div>
+"@
+} catch {
+    $Sec0Html = "<div class='info-box'>Error retrieving Server Details: $($_.Exception.Message)</div>"
+}
+
+# ══════════════════════════════════════════════════════════════════════════════
 #  SECTION 1 - WDS Service Status
 # ══════════════════════════════════════════════════════════════════════════════
 Write-Host "  [1/15] WDS Service Status..." -ForegroundColor Gray
@@ -1129,6 +1174,7 @@ function New-Section {
 }
 
 $HtmlBody = $HtmlHead + $HtmlHeader + $SummaryTiles + $CritSection
+$HtmlBody += New-Section '&#x1F5A5;' '0. Server Details' $Sec0Html
 
 if (-not $WdsRoleInstalled) {
     $HtmlBody += $WdsRoleHtml
