@@ -814,38 +814,59 @@ Write-Progress2 "Section 8: WSUS Services Status..."
 $Sec8Html = ''
 try {
     $serviceNames = @(
-        @{ Name = 'WsusService';            Display = 'WSUS Service (WsusService)' },
-        @{ Name = 'W3Svc';                  Display = 'IIS (W3Svc)' },
-        @{ Name = 'MSSQL$MICROSOFT##WID';   Display = 'Windows Internal Database (WID)' },
-        @{ Name = 'MSSQLSERVER';            Display = 'SQL Server (MSSQLSERVER)' },
-        @{ Name = 'UpdateServicesDbServer'; Display = 'WSUS DB Server (UpdateServicesDbServer)' }
+        # ── Core WSUS services (always expected on a WSUS server) ───────────────
+        @{ Name = 'WsusService';             Display = 'WSUS Update Service (WsusService)';             Critical = $true  },
+        @{ Name = 'W3Svc';                   Display = 'IIS World Wide Web Publishing (W3Svc)';          Critical = $true  },
+        @{ Name = 'WAS';                     Display = 'IIS Process Activation Service (WAS)';           Critical = $true  },
+        @{ Name = 'IISADMIN';                Display = 'IIS Admin Service (IISADMIN)';                   Critical = $true  },
+        # ── Database services – exactly one will be present per environment ─────
+        @{ Name = 'MSSQL$MICROSOFT##WID';    Display = 'Windows Internal Database (WID)';               Critical = $false },
+        @{ Name = 'MSSQLSERVER';             Display = 'SQL Server (MSSQLSERVER)';                       Critical = $false },
+        @{ Name = 'UpdateServicesDbServer';  Display = 'WSUS DB Server Service (UpdateServicesDbServer)'; Critical = $false },
+        # ── Supporting services – required for correct WSUS operation ───────────
+        @{ Name = 'BITS';                    Display = 'Background Intelligent Transfer Service (BITS)'; Critical = $true  },
+        @{ Name = 'wuauserv';                Display = 'Windows Update Agent (wuauserv)';                Critical = $false },  # server also uses WU for self-patching; not critical for WSUS operation
+        @{ Name = 'cryptsvc';                Display = 'Cryptographic Services (cryptsvc)';              Critical = $true  },
+        @{ Name = 'Schedule';                Display = 'Task Scheduler (Schedule)';                      Critical = $false }   # WSUS uses scheduled tasks for sync/cleanup; rarely stopped
     )
 
     $svcRows = [System.Collections.Generic.List[string]]::new()
     foreach ($svcDef in $serviceNames) {
-        $svc = Get-Service -Name $svcDef.Name -ErrorAction SilentlyContinue
+        $svc      = Get-Service -Name $svcDef.Name -ErrorAction SilentlyContinue
+        $reqBadge = if ($svcDef.Critical) { StatusBadge 'Required' 'blue' } else { StatusBadge 'Optional' 'grey' }
+
         if ($null -eq $svc) {
-            $svcRows.Add("<tr><td>$(HtmlEncode $svcDef.Display)</td><td>$(StatusBadge 'Not Installed' 'grey')</td><td>N/A</td></tr>")
+            # A required service that is completely absent is a critical finding
+            if ($svcDef.Critical) {
+                $CriticalFindings.Add("Section 8 - Required service not found: $($svcDef.Display)")
+            }
+            $svcRows.Add("<tr><td>$(HtmlEncode $svcDef.Display)</td><td>$(StatusBadge 'Not Installed' 'grey')</td><td>N/A</td><td>$reqBadge</td></tr>")
         } else {
             $badge = if ($svc.Status -eq 'Running') {
                 StatusBadge 'Running' 'green'
             } else {
-                if ($svcDef.Name -in @('WsusService','W3Svc')) {
-                    $CriticalFindings.Add("Section 8 - Critical service not running: $($svcDef.Display) ($($svc.Status))")
+                if ($svcDef.Critical) {
+                    $CriticalFindings.Add("Section 8 - Required service not running: $($svcDef.Display) ($($svc.Status))")
                 }
                 StatusBadge $svc.Status 'red'
             }
-            $svcRows.Add("<tr><td>$(HtmlEncode $svcDef.Display)</td><td>$badge</td><td>$(HtmlEncode $svc.StartType.ToString())</td></tr>")
+            $svcRows.Add("<tr><td>$(HtmlEncode $svcDef.Display)</td><td>$badge</td><td>$(HtmlEncode $svc.StartType.ToString())</td><td>$reqBadge</td></tr>")
         }
     }
 
     $Sec8Html = @"
 <div class='table-wrap'>
 <table>
-  <thead><tr><th>Service</th><th>Status</th><th>Start Type</th></tr></thead>
+  <thead><tr><th>Service</th><th>Status</th><th>Start Type</th><th>Required</th></tr></thead>
   <tbody>$($svcRows -join '')</tbody>
 </table>
 </div>
+<p class='info' style='margin-top:8px;'>
+  <strong>Required</strong> services must be Running for WSUS to function correctly.
+  <strong>Optional</strong> services: Database (WID/SQL &mdash; only one per environment),
+  Windows Update Agent (wuauserv &mdash; used for server self-patching, not for serving updates),
+  and Task Scheduler (Schedule &mdash; used for sync/cleanup tasks; rarely stopped).
+</p>
 "@
 } catch {
     $Sec8Html = "<p class='error'>Service status error: $(HtmlEncode $_.Exception.Message)</p>"
