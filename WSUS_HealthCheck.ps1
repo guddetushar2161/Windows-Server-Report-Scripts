@@ -22,7 +22,7 @@
       11. Cleanup Recommendations
 
 .NOTES
-    Version    : 2.0.0
+    Version    : 2.1.0
     Author     : Tushar Gudde
     Requires   : PowerShell 5.1+, WSUS role installed on this server
     Permissions: Local Administrator / WSUS Administrators group
@@ -51,9 +51,14 @@ $FailedUpdateThreshold = 5
 
 # Cleanup: flag if WSUS cleanup was not run within this many days
 $CleanupStaleDays = 30
+
+# Status summary file: set to $true to write a companion _HEALTHY.txt / _CRITICAL.txt
+# alongside every HTML report.  The WSUS_HealthCheck_EmailAlert.ps1 script reads these
+# files to send health-state email notifications.
+$EnableStatusFile = $true
 # ──────────────────────────────────────────────────────────────────────────────
 
-$ScriptVersion = '2.0.0'
+$ScriptVersion = '2.1.0'
 $StartTime     = Get-Date
 $ScriptDir     = Split-Path -Parent $MyInvocation.MyCommand.Definition
 if ([string]::IsNullOrEmpty($ScriptDir)) { $ScriptDir = $PWD.Path }
@@ -64,7 +69,8 @@ if (-not (Test-Path $ReportsDir)) {
     try { New-Item -ItemType Directory -Path $ReportsDir -Force | Out-Null }
     catch { Write-Warning "Could not create Reports folder: $_" }
 }
-$ReportFile = Join-Path $ReportsDir ("WSUS_Health_{0}.html" -f (Get-Date -Format 'yyyyMMdd_HHmmss'))
+$ReportStamp = "WSUS_Health_{0}" -f (Get-Date -Format 'yyyyMMdd_HHmmss')
+$ReportFile  = Join-Path $ReportsDir ($ReportStamp + '.html')
 
 # ── HELPER FUNCTIONS ──────────────────────────────────────────────────────────
 function HtmlEncode {
@@ -368,15 +374,15 @@ if (-not $WsusModuleAvailable) {
         try { $totalUpdates = $WsusServer.GetUpdateCount() } catch {}
         try { $failedSyncs  = $syncInfo.NumberOfSyncFailures } catch {}
 
-        $syncBadge = if ($lastSyncResult -match 'Succeeded') {
-            StatusBadge 'Succeeded' 'green'
-        } elseif ($lastSyncResult -match 'Failed') {
-            $CriticalFindings.Add("Section 2 - Last WSUS synchronization FAILED")
-            StatusBadge 'Failed' 'red'
-        } else {
-            StatusBadge $lastSyncResult 'yellow'
-        }
-        $LastSyncBadgeKpi = $syncBadge
+        # ── Detect "never synchronised" state ────────────────────────────────
+        # WSUS returns DateTime.MinValue + result 0 (NotProcessed) when the
+        # server has never performed a sync.  The string 'Never' originates from
+        # the $lastSyncTime default set above: the DateTime.MinValue guard (which
+        # checks rawTime > year-2000 threshold) leaves it at 'Never' instead of
+        # formatting MinValue as '0001-01-01 00:00:00'.
+        # Show an actionable message instead of the generic 'Unknown'/'NotProcessed'.
+        $neverSynced = ($lastSyncTime -eq 'Never') -and
+                       ($lastSyncResult -in @('Unknown', 'NotProcessed'))
 
         $failBadge = if ($failedSyncs -gt 0) {
             StatusBadge "$failedSyncs failed" 'red'
@@ -384,13 +390,36 @@ if (-not $WsusModuleAvailable) {
             StatusBadge '0 failures' 'green'
         }
 
-        $rows2 = @(
-            @('Last Sync Time',      $(HtmlEncode $lastSyncTime)),
-            @('Last Sync Result',    $syncBadge),
-            @('Next Scheduled Sync', $(HtmlEncode $nextSyncTime)),
-            @('Total Updates Synced',$(HtmlEncode $totalUpdates.ToString())),
-            @('Sync Failures',       $failBadge)
-        )
+        if ($neverSynced) {
+            $CriticalFindings.Add("Section 2 - WSUS has NEVER been synchronised. Please run an initial synchronisation from the WSUS console or via Start-WsusServerSynchronization.")
+            $syncBadge        = StatusBadge 'Never Synced' 'yellow'
+            $LastSyncBadgeKpi = $syncBadge
+            $lastSyncTimeHtml = "<span style='color:#d29922;'>&#x26A0;&nbsp;Never synchronised &mdash; please open the WSUS console and run an initial synchronisation.</span>"
+            $rows2 = @(
+                @('Last Sync Time',      $lastSyncTimeHtml),
+                @('Last Sync Result',    $syncBadge),
+                @('Next Scheduled Sync', $(HtmlEncode $nextSyncTime)),
+                @('Total Updates Synced',$(HtmlEncode $totalUpdates.ToString())),
+                @('Sync Failures',       $failBadge)
+            )
+        } else {
+            $syncBadge = if ($lastSyncResult -match 'Succeeded') {
+                StatusBadge 'Succeeded' 'green'
+            } elseif ($lastSyncResult -match 'Failed') {
+                $CriticalFindings.Add("Section 2 - Last WSUS synchronization FAILED")
+                StatusBadge 'Failed' 'red'
+            } else {
+                StatusBadge $lastSyncResult 'yellow'
+            }
+            $LastSyncBadgeKpi = $syncBadge
+            $rows2 = @(
+                @('Last Sync Time',      $(HtmlEncode $lastSyncTime)),
+                @('Last Sync Result',    $syncBadge),
+                @('Next Scheduled Sync', $(HtmlEncode $nextSyncTime)),
+                @('Total Updates Synced',$(HtmlEncode $totalUpdates.ToString())),
+                @('Sync Failures',       $failBadge)
+            )
+        }
         $Sec2Html = BuildKVTable $rows2
     } catch {
         $Sec2Html = "<p class='error'>Error reading synchronization status: $(HtmlEncode $_.Exception.Message)</p>"
@@ -1386,12 +1415,74 @@ try {
     Write-Warning "Failed to write report: $_"
 }
 
+# ═══════════════════════════════════════════════════════════════════════════════
+# STATUS SUMMARY FILE  (plain-text companion — _HEALTHY.txt or _CRITICAL.txt)
+# WSUS_HealthCheck_EmailAlert.ps1 reads these files to send email notifications.
+# ═══════════════════════════════════════════════════════════════════════════════
+$isCritical   = $CriticalFindings.Count -gt 0
+$statusSuffix = if ($isCritical) { '_CRITICAL' } else { '_HEALTHY' }
+$StatusFile   = Join-Path $ReportsDir ($ReportStamp + $statusSuffix + '.txt')
+$separator    = '=' * 70
+
+if ($isCritical) {
+    $statusContent  = "$separator`r`n"
+    $statusContent += " WSUS HEALTH CHECK  -  *** CRITICAL ALERT ***`r`n"
+    $statusContent += "$separator`r`n"
+    $statusContent += " Status       : CRITICAL`r`n"
+    $statusContent += " WSUS Server  : $WsusServerName`r`n"
+    $statusContent += " Generated    : $ReportDate`r`n"
+    $statusContent += " Duration     : $Duration`r`n"
+    $statusContent += "$separator`r`n"
+    $statusContent += "`r`n CRITICAL FINDINGS ($($CriticalFindings.Count)):`r`n`r`n"
+    $statusContent += (@($CriticalFindings) | ForEach-Object { "  [!] $_" }) -join "`r`n"
+    $statusContent += "`r`n`r`n$separator`r`n"
+    $statusContent += " Full HTML report : $ReportFile`r`n"
+    $statusContent += " Status file      : $StatusFile`r`n"
+    $statusContent += "$separator`r`n"
+    $statusContent += " WSUS Health Check v$ScriptVersion  by $AuthorName`r`n"
+    $statusContent += "$separator`r`n"
+} else {
+    $statusContent  = "$separator`r`n"
+    $statusContent += " WSUS HEALTH CHECK  -  HEALTHY STATE`r`n"
+    $statusContent += "$separator`r`n"
+    $statusContent += " Status       : HEALTHY`r`n"
+    $statusContent += " WSUS Server  : $WsusServerName`r`n"
+    $statusContent += " Generated    : $ReportDate`r`n"
+    $statusContent += " Duration     : $Duration`r`n"
+    $statusContent += "$separator`r`n"
+    $statusContent += "`r`n No critical findings, errors, or warnings were detected.`r`n"
+    $statusContent += " Your WSUS server is in a healthy state.`r`n"
+    $statusContent += "`r`n$separator`r`n"
+    $statusContent += " Full HTML report : $ReportFile`r`n"
+    $statusContent += " Status file      : $StatusFile`r`n"
+    $statusContent += "$separator`r`n"
+    $statusContent += " WSUS Health Check v$ScriptVersion  by $AuthorName`r`n"
+    $statusContent += "$separator`r`n"
+}
+
+if ($EnableStatusFile) {
+    try {
+        [System.IO.File]::WriteAllText($StatusFile, $statusContent, [System.Text.Encoding]::UTF8)
+        $statusColor = if ($isCritical) { 'Red' } else { 'Green' }
+        Write-Host "  [OK] Status file saved to: $StatusFile" -ForegroundColor $statusColor
+    } catch {
+        Write-Warning "Failed to write status file: $_"
+    }
+}
+
 Write-Host ""
 Write-Host "===============================================================" -ForegroundColor DarkCyan
 Write-Host "  WSUS Health Check complete.  Duration: $Duration" -ForegroundColor DarkCyan
 Write-Host "  Report  : $ReportFile" -ForegroundColor Yellow
-$statusLabel = if ($CritCount -gt 0) { 'CRITICAL' } else { 'HEALTHY' }
-$statusColor = if ($CritCount -gt 0) { 'Red' } else { 'Green' }
-Write-Host "  Status  : $statusLabel ($CritCount critical findings)" -ForegroundColor $statusColor
+if ($EnableStatusFile) {
+    $statusLabel = if ($isCritical) { 'Status (CRITICAL)' } else { 'Status (HEALTHY)' }
+    Write-Host "  $statusLabel : $StatusFile" -ForegroundColor $(if ($isCritical) { 'Red' } else { 'Green' })
+    Write-Host ""
+    Write-Host "  To send email alerts, run: .\WSUS_HealthCheck_EmailAlert.ps1  (configure SMTP settings inside first)" -ForegroundColor Cyan
+} else {
+    $statusLabel = if ($CritCount -gt 0) { 'CRITICAL' } else { 'HEALTHY' }
+    $statusColor = if ($CritCount -gt 0) { 'Red' } else { 'Green' }
+    Write-Host "  Status  : $statusLabel ($CritCount critical findings)" -ForegroundColor $statusColor
+}
 Write-Host "===============================================================" -ForegroundColor DarkCyan
 Write-Host ""
