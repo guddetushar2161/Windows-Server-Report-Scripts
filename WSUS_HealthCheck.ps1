@@ -22,7 +22,7 @@
       11. Cleanup Recommendations
 
 .NOTES
-    Version    : 1.0.0
+    Version    : 2.0.0
     Author     : Tushar Gudde
     Requires   : PowerShell 5.1+, WSUS role installed on this server
     Permissions: Local Administrator / WSUS Administrators group
@@ -53,7 +53,7 @@ $FailedUpdateThreshold = 5
 $CleanupStaleDays = 30
 # ──────────────────────────────────────────────────────────────────────────────
 
-$ScriptVersion = '1.0.0'
+$ScriptVersion = '2.0.0'
 $StartTime     = Get-Date
 $ScriptDir     = Split-Path -Parent $MyInvocation.MyCommand.Definition
 if ([string]::IsNullOrEmpty($ScriptDir)) { $ScriptDir = $PWD.Path }
@@ -330,10 +330,32 @@ if (-not $WsusModuleAvailable) {
         $totalUpdates   = 0
         $failedSyncs    = 0
 
-        try { $lastSyncTime   = $syncInfo.LastSynchronizationTime.ToString('yyyy-MM-dd HH:mm:ss') } catch {}
         try {
-            $rawResult      = $syncInfo.LastSynchronizationResult
-            $lastSyncResult = $rawResult.ToString()
+            $rawTime = $syncInfo.LastSynchronizationTime
+            # Guard against DateTime.MinValue (WSUS returns MinValue when sync has never run).
+            # Any real sync date will be far beyond this threshold.
+            $syncEpoch = [datetime]'2000-01-01'
+            if ($rawTime -gt $syncEpoch) {
+                $lastSyncTime = $rawTime.ToString('yyyy-MM-dd HH:mm:ss')
+            }
+            # else keeps the default 'Never'
+        } catch {}
+        try {
+            $rawResult  = $syncInfo.LastSynchronizationResult
+            $strResult  = $rawResult.ToString()
+            # WSUS API may return the integer value (e.g. "1") instead of the
+            # enum name ("Succeeded") depending on the .NET/COM interop layer.
+            # Map numeric values explicitly so the badge is never "Unknown".
+            if ($strResult -match '^\d+$') {
+                $lastSyncResult = switch ([int]$strResult) {
+                    0 { 'NotProcessed' }
+                    1 { 'Succeeded'    }
+                    2 { 'Failed'       }
+                    default { "Status($strResult)" }
+                }
+            } else {
+                $lastSyncResult = $strResult
+            }
         } catch {}
         try {
             $nextSync = $syncInfo.NextScheduledSynchronizationTime
