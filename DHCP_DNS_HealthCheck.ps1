@@ -205,7 +205,7 @@ if ($IsDHCPInstalled) {
         Import-Module DhcpServer -ErrorAction Stop
         $DhcpModuleOk = $true
     } catch {
-        Write-Progress2 "DhcpServer module not available — some DHCP checks will use WMI/registry fallback."
+        Write-Progress2 "DhcpServer module not available  -  some DHCP checks will use WMI/registry fallback."
     }
 }
 
@@ -225,12 +225,12 @@ if ($IsDNSInstalled) {
         Import-Module DnsServer -ErrorAction Stop
         $DnsModuleOk = $true
     } catch {
-        Write-Progress2 "DnsServer module not available — limited DNS checks will be performed."
+        Write-Progress2 "DnsServer module not available  -  limited DNS checks will be performed."
     }
 }
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# DHCP SECTION 1 — DHCP SERVICE STATUS
+# DHCP SECTION 1  -  DHCP SERVICE STATUS
 # ═══════════════════════════════════════════════════════════════════════════════
 Write-Progress2 "DHCP-1: Service Status..."
 $D1Html = ''
@@ -280,15 +280,15 @@ if (-not $IsDHCPInstalled) {
 }
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# DHCP SECTION 2 — SCOPE INVENTORY
+# DHCP SECTION 2  -  SCOPE INVENTORY
 # ═══════════════════════════════════════════════════════════════════════════════
 Write-Progress2 "DHCP-2: Scope Inventory..."
 $D2Html = ''
 $AllScopes = @()
 if (-not $IsDHCPInstalled) {
-    $D2Html = "<p class='warn'>DHCP not installed — skipped.</p>"
+    $D2Html = "<p class='warn'>DHCP not installed  -  skipped.</p>"
 } elseif (-not $DhcpModuleOk) {
-    $D2Html = "<p class='warn'>DhcpServer module not available — scope inventory requires the DHCP management tools.</p>"
+    $D2Html = "<p class='warn'>DhcpServer module not available  -  scope inventory requires the DHCP management tools.</p>"
 } else {
     try {
         $AllScopes = @(Get-DhcpServerv4Scope -ErrorAction Stop)
@@ -321,14 +321,14 @@ if (-not $IsDHCPInstalled) {
 }
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# DHCP SECTION 3 — SCOPE UTILIZATION
+# DHCP SECTION 3  -  SCOPE UTILIZATION
 # ═══════════════════════════════════════════════════════════════════════════════
 Write-Progress2 "DHCP-3: Scope Utilization..."
 $D3Html = ''
 if (-not $IsDHCPInstalled) {
-    $D3Html = "<p class='warn'>DHCP not installed — skipped.</p>"
+    $D3Html = "<p class='warn'>DHCP not installed  -  skipped.</p>"
 } elseif (-not $DhcpModuleOk -or $AllScopes.Count -eq 0) {
-    $D3Html = "<p class='warn'>DhcpServer module not available or no scopes found — utilization check skipped.</p>"
+    $D3Html = "<p class='warn'>DhcpServer module not available or no scopes found  -  utilization check skipped.</p>"
 } else {
     try {
         $D3Html  = "<div class='table-wrap'><table><thead><tr>"
@@ -373,12 +373,12 @@ if (-not $IsDHCPInstalled) {
 }
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# DHCP SECTION 4 — FAILOVER
+# DHCP SECTION 4  -  FAILOVER
 # ═══════════════════════════════════════════════════════════════════════════════
 Write-Progress2 "DHCP-4: Failover..."
 $D4Html = ''
 if (-not $IsDHCPInstalled -or -not $DhcpModuleOk) {
-    $D4Html = "<p class='warn'>$(if (-not $IsDHCPInstalled) { 'DHCP not installed' } else { 'DhcpServer module not available' }) — skipped.</p>"
+    $D4Html = "<p class='warn'>$(if (-not $IsDHCPInstalled) { 'DHCP not installed' } else { 'DhcpServer module not available' })  -  skipped.</p>"
 } else {
     try {
         $failovers = @(Get-DhcpServerv4Failover -ErrorAction Stop)
@@ -413,12 +413,12 @@ if (-not $IsDHCPInstalled -or -not $DhcpModuleOk) {
 }
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# DHCP SECTION 5 — RESERVATIONS
+# DHCP SECTION 5  -  RESERVATIONS
 # ═══════════════════════════════════════════════════════════════════════════════
 Write-Progress2 "DHCP-5: Reservations..."
 $D5Html = ''
 if (-not $IsDHCPInstalled -or -not $DhcpModuleOk -or $AllScopes.Count -eq 0) {
-    $D5Html = "<p class='warn'>$(if (-not $IsDHCPInstalled) { 'DHCP not installed' } elseif (-not $DhcpModuleOk) { 'DhcpServer module not available' } else { 'No scopes found' }) — skipped.</p>"
+    $D5Html = "<p class='warn'>$(if (-not $IsDHCPInstalled) { 'DHCP not installed' } elseif (-not $DhcpModuleOk) { 'DhcpServer module not available' } else { 'No scopes found' })  -  skipped.</p>"
 } else {
     try {
         $D5Html  = "<div class='table-wrap'><table><thead><tr>"
@@ -448,12 +448,12 @@ if (-not $IsDHCPInstalled -or -not $DhcpModuleOk -or $AllScopes.Count -eq 0) {
 }
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# DHCP SECTION 6 — LEASE STATISTICS
+# DHCP SECTION 6  -  LEASE STATISTICS
 # ═══════════════════════════════════════════════════════════════════════════════
 Write-Progress2 "DHCP-6: Lease Statistics..."
 $D6Html = ''
 if (-not $IsDHCPInstalled -or -not $DhcpModuleOk) {
-    $D6Html = "<p class='warn'>$(if (-not $IsDHCPInstalled) { 'DHCP not installed' } else { 'DhcpServer module not available' }) — skipped.</p>"
+    $D6Html = "<p class='warn'>$(if (-not $IsDHCPInstalled) { 'DHCP not installed' } else { 'DhcpServer module not available' })  -  skipped.</p>"
 } else {
     try {
         $stats = Get-DhcpServerv4Statistics -ErrorAction Stop
@@ -478,12 +478,12 @@ if (-not $IsDHCPInstalled -or -not $DhcpModuleOk) {
 }
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# DHCP SECTION 7 — AUDIT LOG
+# DHCP SECTION 7  -  AUDIT LOG
 # ═══════════════════════════════════════════════════════════════════════════════
 Write-Progress2 "DHCP-7: Audit Log..."
 $D7Html = ''
 if (-not $IsDHCPInstalled -or -not $DhcpModuleOk) {
-    $D7Html = "<p class='warn'>$(if (-not $IsDHCPInstalled) { 'DHCP not installed' } else { 'DhcpServer module not available' }) — skipped.</p>"
+    $D7Html = "<p class='warn'>$(if (-not $IsDHCPInstalled) { 'DHCP not installed' } else { 'DhcpServer module not available' })  -  skipped.</p>"
 } else {
     try {
         $auditCfg  = Get-DhcpServerAuditLog -ErrorAction Stop
@@ -507,12 +507,12 @@ if (-not $IsDHCPInstalled -or -not $DhcpModuleOk) {
 }
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# DHCP SECTION 8 — DATABASE
+# DHCP SECTION 8  -  DATABASE
 # ═══════════════════════════════════════════════════════════════════════════════
 Write-Progress2 "DHCP-8: Database..."
 $D8Html = ''
 if (-not $IsDHCPInstalled -or -not $DhcpModuleOk) {
-    $D8Html = "<p class='warn'>$(if (-not $IsDHCPInstalled) { 'DHCP not installed' } else { 'DhcpServer module not available' }) — skipped.</p>"
+    $D8Html = "<p class='warn'>$(if (-not $IsDHCPInstalled) { 'DHCP not installed' } else { 'DhcpServer module not available' })  -  skipped.</p>"
 } else {
     try {
         $dbCfg  = Get-DhcpServerDatabase -ErrorAction Stop
@@ -541,13 +541,13 @@ if (-not $IsDHCPInstalled -or -not $DhcpModuleOk) {
 }
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# DHCP SECTION 9 — EVENT LOG
+# DHCP SECTION 9  -  EVENT LOG
 # ═══════════════════════════════════════════════════════════════════════════════
 Write-Progress2 "DHCP-9: Event Log..."
 $D9Html = ''
 try {
     if (-not $IsDHCPInstalled) {
-        $D9Html = "<p class='warn'>DHCP not installed — skipped.</p>"
+        $D9Html = "<p class='warn'>DHCP not installed  -  skipped.</p>"
     } else {
         $dhcpEvents = [System.Collections.Generic.List[object]]::new()
         $since48h   = (Get-Date).AddHours(-48)
@@ -591,7 +591,7 @@ try {
 }
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# DNS SECTION 10 — SERVICE STATUS
+# DNS SECTION 10  -  SERVICE STATUS
 # ═══════════════════════════════════════════════════════════════════════════════
 Write-Progress2 "DNS-10: Service Status..."
 $N10Html = ''
@@ -619,15 +619,15 @@ if (-not $IsDNSInstalled) {
 }
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# DNS SECTION 11 — ZONE INVENTORY
+# DNS SECTION 11  -  ZONE INVENTORY
 # ═══════════════════════════════════════════════════════════════════════════════
 Write-Progress2 "DNS-11: Zone Inventory..."
 $N11Html  = ''
 $AllZones = @()
 if (-not $IsDNSInstalled) {
-    $N11Html = "<p class='warn'>DNS not installed — skipped.</p>"
+    $N11Html = "<p class='warn'>DNS not installed  -  skipped.</p>"
 } elseif (-not $DnsModuleOk) {
-    $N11Html = "<p class='warn'>DnsServer module not available — zone inventory skipped.</p>"
+    $N11Html = "<p class='warn'>DnsServer module not available  -  zone inventory skipped.</p>"
 } else {
     try {
         $AllZones  = @(Get-DnsServerZone -ErrorAction Stop)
@@ -663,12 +663,12 @@ if (-not $IsDNSInstalled) {
 }
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# DNS SECTION 12 — ZONE HEALTH
+# DNS SECTION 12  -  ZONE HEALTH
 # ═══════════════════════════════════════════════════════════════════════════════
 Write-Progress2 "DNS-12: Zone Health..."
 $N12Html = ''
 if (-not $IsDNSInstalled -or -not $DnsModuleOk -or $AllZones.Count -eq 0) {
-    $N12Html = "<p class='warn'>$(if (-not $IsDNSInstalled) { 'DNS not installed' } elseif (-not $DnsModuleOk) { 'DnsServer module not available' } else { 'No zones found' }) — skipped.</p>"
+    $N12Html = "<p class='warn'>$(if (-not $IsDNSInstalled) { 'DNS not installed' } elseif (-not $DnsModuleOk) { 'DnsServer module not available' } else { 'No zones found' })  -  skipped.</p>"
 } else {
     try {
         $primaryZones = @($AllZones | Where-Object { $_.ZoneType -eq 'Primary' -and $_.ZoneName -ne '.' })
@@ -710,12 +710,12 @@ if (-not $IsDNSInstalled -or -not $DnsModuleOk -or $AllZones.Count -eq 0) {
 }
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# DNS SECTION 13 — FORWARDERS
+# DNS SECTION 13  -  FORWARDERS
 # ═══════════════════════════════════════════════════════════════════════════════
 Write-Progress2 "DNS-13: Forwarders..."
 $N13Html = ''
 if (-not $IsDNSInstalled -or -not $DnsModuleOk) {
-    $N13Html = "<p class='warn'>$(if (-not $IsDNSInstalled) { 'DNS not installed' } else { 'DnsServer module not available' }) — skipped.</p>"
+    $N13Html = "<p class='warn'>$(if (-not $IsDNSInstalled) { 'DNS not installed' } else { 'DnsServer module not available' })  -  skipped.</p>"
 } else {
     try {
         $fwdCfg  = Get-DnsServerForwarder -ErrorAction Stop
@@ -749,12 +749,12 @@ if (-not $IsDNSInstalled -or -not $DnsModuleOk) {
 }
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# DNS SECTION 14 — ROOT HINTS
+# DNS SECTION 14  -  ROOT HINTS
 # ═══════════════════════════════════════════════════════════════════════════════
 Write-Progress2 "DNS-14: Root Hints..."
 $N14Html = ''
 if (-not $IsDNSInstalled -or -not $DnsModuleOk) {
-    $N14Html = "<p class='warn'>$(if (-not $IsDNSInstalled) { 'DNS not installed' } else { 'DnsServer module not available' }) — skipped.</p>"
+    $N14Html = "<p class='warn'>$(if (-not $IsDNSInstalled) { 'DNS not installed' } else { 'DnsServer module not available' })  -  skipped.</p>"
 } else {
     try {
         $rootHints = @(Get-DnsServerRootHint -ErrorAction Stop)
@@ -783,12 +783,12 @@ if (-not $IsDNSInstalled -or -not $DnsModuleOk) {
 }
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# DNS SECTION 15 — RESOLUTION TESTS
+# DNS SECTION 15  -  RESOLUTION TESTS
 # ═══════════════════════════════════════════════════════════════════════════════
 Write-Progress2 "DNS-15: Resolution Tests..."
 $N15Html = ''
 if (-not $IsDNSInstalled) {
-    $N15Html = "<p class='warn'>DNS not installed — skipped.</p>"
+    $N15Html = "<p class='warn'>DNS not installed  -  skipped.</p>"
 } else {
     try {
         # Get local domain
@@ -846,12 +846,12 @@ if (-not $IsDNSInstalled) {
 }
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# DNS SECTION 16 — AGING & SCAVENGING
+# DNS SECTION 16  -  AGING & SCAVENGING
 # ═══════════════════════════════════════════════════════════════════════════════
 Write-Progress2 "DNS-16: Aging & Scavenging..."
 $N16Html = ''
 if (-not $IsDNSInstalled -or -not $DnsModuleOk -or $AllZones.Count -eq 0) {
-    $N16Html = "<p class='warn'>$(if (-not $IsDNSInstalled) { 'DNS not installed' } elseif (-not $DnsModuleOk) { 'DnsServer module not available' } else { 'No zones found' }) — skipped.</p>"
+    $N16Html = "<p class='warn'>$(if (-not $IsDNSInstalled) { 'DNS not installed' } elseif (-not $DnsModuleOk) { 'DnsServer module not available' } else { 'No zones found' })  -  skipped.</p>"
 } else {
     try {
         # Server-level scavenging
@@ -896,12 +896,12 @@ if (-not $IsDNSInstalled -or -not $DnsModuleOk -or $AllZones.Count -eq 0) {
 }
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# DNS SECTION 17 — CONDITIONAL FORWARDERS
+# DNS SECTION 17  -  CONDITIONAL FORWARDERS
 # ═══════════════════════════════════════════════════════════════════════════════
 Write-Progress2 "DNS-17: Conditional Forwarders..."
 $N17Html = ''
 if (-not $IsDNSInstalled -or -not $DnsModuleOk) {
-    $N17Html = "<p class='warn'>$(if (-not $IsDNSInstalled) { 'DNS not installed' } else { 'DnsServer module not available' }) — skipped.</p>"
+    $N17Html = "<p class='warn'>$(if (-not $IsDNSInstalled) { 'DNS not installed' } else { 'DnsServer module not available' })  -  skipped.</p>"
 } else {
     try {
         $condFwds = @($AllZones | Where-Object { $_.ZoneType -eq 'Forwarder' })
@@ -943,12 +943,12 @@ if (-not $IsDNSInstalled -or -not $DnsModuleOk) {
 }
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# DNS SECTION 18 — DNSSEC STATUS
+# DNS SECTION 18  -  DNSSEC STATUS
 # ═══════════════════════════════════════════════════════════════════════════════
 Write-Progress2 "DNS-18: DNSSEC..."
 $N18Html = ''
 if (-not $IsDNSInstalled -or -not $DnsModuleOk -or $AllZones.Count -eq 0) {
-    $N18Html = "<p class='warn'>$(if (-not $IsDNSInstalled) { 'DNS not installed' } elseif (-not $DnsModuleOk) { 'DnsServer module not available' } else { 'No zones found' }) — skipped.</p>"
+    $N18Html = "<p class='warn'>$(if (-not $IsDNSInstalled) { 'DNS not installed' } elseif (-not $DnsModuleOk) { 'DnsServer module not available' } else { 'No zones found' })  -  skipped.</p>"
 } else {
     try {
         $signedZones = @($AllZones | Where-Object { $null -ne $_.IsSigned -and $_.IsSigned -eq $true })
@@ -972,12 +972,12 @@ if (-not $IsDNSInstalled -or -not $DnsModuleOk -or $AllZones.Count -eq 0) {
 }
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# DNS SECTION 19 — DNS CACHE
+# DNS SECTION 19  -  DNS CACHE
 # ═══════════════════════════════════════════════════════════════════════════════
 Write-Progress2 "DNS-19: DNS Cache..."
 $N19Html = ''
 if (-not $IsDNSInstalled -or -not $DnsModuleOk) {
-    $N19Html = "<p class='warn'>$(if (-not $IsDNSInstalled) { 'DNS not installed' } else { 'DnsServer module not available' }) — skipped.</p>"
+    $N19Html = "<p class='warn'>$(if (-not $IsDNSInstalled) { 'DNS not installed' } else { 'DnsServer module not available' })  -  skipped.</p>"
 } else {
     try {
         $cacheRoot  = Get-DnsServerCache -ErrorAction Stop
@@ -1003,13 +1003,13 @@ if (-not $IsDNSInstalled -or -not $DnsModuleOk) {
 }
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# DNS SECTION 20 — EVENT LOG
+# DNS SECTION 20  -  EVENT LOG
 # ═══════════════════════════════════════════════════════════════════════════════
 Write-Progress2 "DNS-20: Event Log..."
 $N20Html = ''
 try {
     if (-not $IsDNSInstalled) {
-        $N20Html = "<p class='warn'>DNS not installed — skipped.</p>"
+        $N20Html = "<p class='warn'>DNS not installed  -  skipped.</p>"
     } else {
         $dnsEvents = [System.Collections.Generic.List[object]]::new()
         $since48h  = (Get-Date).AddHours(-48)

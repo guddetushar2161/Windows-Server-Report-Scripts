@@ -199,8 +199,8 @@ try {
     Write-Progress2 "ADCS (CertSvc) detected."
 } catch {
     $IsADCSInstalled = $false
-    Write-Progress2 "CertSvc not found — ADCS does not appear to be installed on this server."
-    $CriticalFindings.Add("ADCS (CertSvc) service not found — certificate authority is not installed or has been removed")
+    Write-Progress2 "CertSvc not found  -  ADCS does not appear to be installed on this server."
+    $CriticalFindings.Add("ADCS (CertSvc) service not found  -  certificate authority is not installed or has been removed")
 }
 
 # ── READ CA REGISTRY CONFIG ───────────────────────────────────────────────────
@@ -214,7 +214,7 @@ try {
 } catch {}
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# SECTION 1 — CA IDENTITY & CONFIG
+# SECTION 1  -  CA IDENTITY & CONFIG
 # ═══════════════════════════════════════════════════════════════════════════════
 Write-Progress2 "Section 1: CA Identity & Config..."
 $Sec1Html = ''
@@ -305,7 +305,7 @@ if (-not $IsADCSInstalled) {
 }
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# SECTION 2 — ADCS SERVICES STATUS
+# SECTION 2  -  ADCS SERVICES STATUS
 # ═══════════════════════════════════════════════════════════════════════════════
 Write-Progress2 "Section 2: ADCS Services Status..."
 $Sec2Html = ''
@@ -345,13 +345,13 @@ try {
 }
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# SECTION 3 — CA CERTIFICATE VALIDITY
+# SECTION 3  -  CA CERTIFICATE VALIDITY
 # ═══════════════════════════════════════════════════════════════════════════════
 Write-Progress2 "Section 3: CA Certificate Validity..."
 $Sec3Html = ''
 try {
     if (-not $IsADCSInstalled) {
-        $Sec3Html = "<p class='warn'>ADCS not installed — certificate validity check skipped.</p>"
+        $Sec3Html = "<p class='warn'>ADCS not installed  -  certificate validity check skipped.</p>"
     } else {
         # Build countdown bar
         if ($CACertDaysLeft -ge 0) {
@@ -406,14 +406,14 @@ try {
 }
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# SECTION 4 — CRL HEALTH
+# SECTION 4  -  CRL HEALTH
 # ═══════════════════════════════════════════════════════════════════════════════
 Write-Progress2 "Section 4: CRL Health..."
 $Sec4Html = ''
 $CRLDaysLeft = -1
 try {
     if (-not $IsADCSInstalled) {
-        $Sec4Html = "<p class='warn'>ADCS not installed — CRL health check skipped.</p>"
+        $Sec4Html = "<p class='warn'>ADCS not installed  -  CRL health check skipped.</p>"
     } else {
         # Try to find CRL in the default CertEnroll folder
         $certEnrollPath = Join-Path $env:SystemRoot 'system32\CertSrv\CertEnroll'
@@ -514,13 +514,13 @@ try {
 }
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# SECTION 5 — CRL DISTRIBUTION POINTS (CDP)
+# SECTION 5  -  CRL DISTRIBUTION POINTS (CDP)
 # ═══════════════════════════════════════════════════════════════════════════════
 Write-Progress2 "Section 5: CRL Distribution Points..."
 $Sec5Html = ''
 try {
     if (-not $IsADCSInstalled) {
-        $Sec5Html = "<p class='warn'>ADCS not installed — CDP check skipped.</p>"
+        $Sec5Html = "<p class='warn'>ADCS not installed  -  CDP check skipped.</p>"
     } else {
         $cdpList = @()
         if ($CANamesList.Count -gt 0 -and (Test-Path "$CARegBase\$CAName")) {
@@ -579,7 +579,7 @@ try {
 }
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# SECTION 6 — OCSP STATUS
+# SECTION 6  -  OCSP STATUS
 # ═══════════════════════════════════════════════════════════════════════════════
 Write-Progress2 "Section 6: OCSP Status..."
 $Sec6Html = ''
@@ -645,13 +645,13 @@ try {
 }
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# SECTION 7 — ISSUED CERTIFICATES SUMMARY
+# SECTION 7  -  ISSUED CERTIFICATES SUMMARY
 # ═══════════════════════════════════════════════════════════════════════════════
 Write-Progress2 "Section 7: Issued Certificates Summary..."
 $Sec7Html = ''
 try {
     if (-not $IsADCSInstalled) {
-        $Sec7Html = "<p class='warn'>ADCS not installed — certificate summary skipped.</p>"
+        $Sec7Html = "<p class='warn'>ADCS not installed  -  certificate summary skipped.</p>"
     } else {
         # Use certutil -view to count issued/revoked certs
         $totalIssued    = 'N/A'
@@ -711,9 +711,9 @@ try {
         $barHtml = ''
         if ($totalIssued -is [int] -and $totalIssued -gt 0) {
             $segments = @(
-                @{ Label='Expiring ≤30d';  Count=$expiring30;     Color='#f85149' },
-                @{ Label='Expiring ≤60d';  Count=$expiring60;     Color='#d29922' },
-                @{ Label='Expiring ≤90d';  Count=$expiring90;     Color='#e3a019' },
+                @{ Label='Expiring <=30d';  Count=$expiring30;     Color='#f85149' },
+                @{ Label='Expiring <=60d';  Count=$expiring60;     Color='#d29922' },
+                @{ Label='Expiring <=90d';  Count=$expiring90;     Color='#e3a019' },
                 @{ Label='Already Expired';Count=$alreadyExpired; Color='#6e40c9' }
             )
             $barHtml  = "<div style='margin:12px 0;'><h4 style='margin-bottom:8px;'>Certificate Expiry Breakdown</h4>"
@@ -733,9 +733,9 @@ try {
         $rows7 = @(
             @('Total Issued Certs',      (HtmlEncode $totalIssued.ToString())),
             @('Total Revoked',           (HtmlEncode $totalRevoked.ToString())),
-            @('Expiring ≤ 30 days',      (HtmlEncode $expiring30.ToString())),
-            @('Expiring ≤ 60 days',      (HtmlEncode $expiring60.ToString())),
-            @('Expiring ≤ 90 days',      (HtmlEncode $expiring90.ToString())),
+            @('Expiring <= 30 days',      (HtmlEncode $expiring30.ToString())),
+            @('Expiring <= 60 days',      (HtmlEncode $expiring60.ToString())),
+            @('Expiring <= 90 days',      (HtmlEncode $expiring90.ToString())),
             @('Already Expired',         (HtmlEncode $alreadyExpired.ToString()))
         )
         $Sec7Html = BuildKVTable $rows7
@@ -751,13 +751,13 @@ try {
 }
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# SECTION 8 — CERTIFICATE TEMPLATES
+# SECTION 8  -  CERTIFICATE TEMPLATES
 # ═══════════════════════════════════════════════════════════════════════════════
 Write-Progress2 "Section 8: Certificate Templates..."
 $Sec8Html = ''
 try {
     if (-not $IsADCSInstalled) {
-        $Sec8Html = "<p class='warn'>ADCS not installed — template check skipped.</p>"
+        $Sec8Html = "<p class='warn'>ADCS not installed  -  template check skipped.</p>"
     } else {
         # Templates are in AD for Enterprise CAs or in registry for Standalone
         $templateOutput = Invoke-CertUtil @('-CATemplates')
@@ -789,13 +789,13 @@ try {
 }
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# SECTION 9 — AIA (AUTHORITY INFORMATION ACCESS) URLS
+# SECTION 9  -  AIA (AUTHORITY INFORMATION ACCESS) URLS
 # ═══════════════════════════════════════════════════════════════════════════════
 Write-Progress2 "Section 9: AIA URLs..."
 $Sec9Html = ''
 try {
     if (-not $IsADCSInstalled) {
-        $Sec9Html = "<p class='warn'>ADCS not installed — AIA check skipped.</p>"
+        $Sec9Html = "<p class='warn'>ADCS not installed  -  AIA check skipped.</p>"
     } else {
         $aiaList = @()
         if ($CANamesList.Count -gt 0 -and (Test-Path "$CARegBase\$CAName")) {
@@ -851,13 +851,13 @@ try {
 }
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# SECTION 10 — CA DATABASE SIZE
+# SECTION 10  -  CA DATABASE SIZE
 # ═══════════════════════════════════════════════════════════════════════════════
 Write-Progress2 "Section 10: CA Database Size..."
 $Sec10Html = ''
 try {
     if (-not $IsADCSInstalled) {
-        $Sec10Html = "<p class='warn'>ADCS not installed — database check skipped.</p>"
+        $Sec10Html = "<p class='warn'>ADCS not installed  -  database check skipped.</p>"
     } else {
         $dbPath    = 'Unknown'
         $dbLogPath = 'Unknown'
@@ -902,13 +902,13 @@ try {
 }
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# SECTION 11 — FAILED REQUESTS (LAST 7 DAYS)
+# SECTION 11  -  FAILED REQUESTS (LAST 7 DAYS)
 # ═══════════════════════════════════════════════════════════════════════════════
 Write-Progress2 "Section 11: Failed Requests (last 7 days)..."
 $Sec11Html = ''
 try {
     if (-not $IsADCSInstalled) {
-        $Sec11Html = "<p class='warn'>ADCS not installed — failed request check skipped.</p>"
+        $Sec11Html = "<p class='warn'>ADCS not installed  -  failed request check skipped.</p>"
     } else {
         # Disposition 30 = Failed, 31 = Denied
         $failedOutput = Invoke-CertUtil @("-config", "`"$ServerHostname\$CAName`"", '-view', '-restrict', 'Disposition=30', '-out', 'RequestId,RequestSubmittedWhen,DispositionMessage')
@@ -948,7 +948,7 @@ try {
         )
         $Sec11Html = BuildKVTable $rows11
         if ($totalFailed -eq 0 -and [string]::IsNullOrEmpty($failedOutput)) {
-            $Sec11Html += "<p class='warn' style='margin-top:8px;'>certutil -view returned no output — failed request counts may not be accurate.</p>"
+            $Sec11Html += "<p class='warn' style='margin-top:8px;'>certutil -view returned no output  -  failed request counts may not be accurate.</p>"
         }
     }
 } catch {
@@ -957,7 +957,7 @@ try {
 }
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# SECTION 12 — CA EVENT LOGS
+# SECTION 12  -  CA EVENT LOGS
 # ═══════════════════════════════════════════════════════════════════════════════
 Write-Progress2 "Section 12: CA Event Logs..."
 $Sec12Html = ''
@@ -1013,13 +1013,13 @@ try {
 }
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# SECTION 13 — ENROLLMENT AGENT & KEY RECOVERY AGENT
+# SECTION 13  -  ENROLLMENT AGENT & KEY RECOVERY AGENT
 # ═══════════════════════════════════════════════════════════════════════════════
 Write-Progress2 "Section 13: Enrollment Agent / KRA..."
 $Sec13Html = ''
 try {
     if (-not $IsADCSInstalled) {
-        $Sec13Html = "<p class='warn'>ADCS not installed — KRA/EA check skipped.</p>"
+        $Sec13Html = "<p class='warn'>ADCS not installed  -  KRA/EA check skipped.</p>"
     } else {
         $kraCerts    = @()
         $kraCount    = 0
@@ -1070,13 +1070,13 @@ try {
 }
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# SECTION 14 — HSM / KEY STORAGE
+# SECTION 14  -  HSM / KEY STORAGE
 # ═══════════════════════════════════════════════════════════════════════════════
 Write-Progress2 "Section 14: HSM / Key Storage..."
 $Sec14Html = ''
 try {
     if (-not $IsADCSInstalled) {
-        $Sec14Html = "<p class='warn'>ADCS not installed — key storage check skipped.</p>"
+        $Sec14Html = "<p class='warn'>ADCS not installed  -  key storage check skipped.</p>"
     } else {
         $kspProvider = 'Unknown'
         $kspType     = 'Unknown'
