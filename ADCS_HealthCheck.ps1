@@ -214,6 +214,48 @@ try {
 } catch {}
 
 # ═══════════════════════════════════════════════════════════════════════════════
+# SECTION 0  -  SERVER DETAILS  (host running the script)
+# ═══════════════════════════════════════════════════════════════════════════════
+Write-Progress2 "Section 0: Gathering Server Details..."
+$Sec0Html = ''
+try {
+    $cs   = Get-CimInstance Win32_ComputerSystem  -ErrorAction Stop
+    $bios = Get-CimInstance Win32_BIOS            -ErrorAction Stop
+    $os   = Get-CimInstance Win32_OperatingSystem -ErrorAction Stop
+    $cpu  = @(Get-CimInstance Win32_Processor     -ErrorAction Stop)
+
+    $totalRAM_GB = [math]::Round($cs.TotalPhysicalMemory / 1GB, 2)
+    $isVirtual   = ($cs.Model        -match 'Virtual|VMware|VirtualBox|QEMU|KVM|Xen|HVM') -or
+                   ($cs.Manufacturer -match 'VMware|QEMU|Xen|Parallels|innotek') -or
+                   ($cs.Manufacturer -eq 'Microsoft Corporation' -and $cs.Model -match 'Virtual')
+    $serverTypeBadge = if ($isVirtual) { StatusBadge 'Virtual Machine' 'blue' } else { StatusBadge 'Physical Server' 'green' }
+    $cpuNames    = ($cpu | ForEach-Object { HtmlEncode $(if ($null -ne $_.Name) { $_.Name.Trim() } else { 'Unknown' }) } | Select-Object -Unique) -join '; '
+
+    $installDate  = if ($null -ne $os.InstallDate)    { $os.InstallDate.ToString('yyyy-MM-dd')             } else { 'N/A' }
+    $lastBootTime = if ($null -ne $os.LastBootUpTime) { $os.LastBootUpTime.ToString('yyyy-MM-dd HH:mm:ss') } else { 'N/A' }
+
+    $rows0 = @(
+        @('Hostname',        (HtmlEncode $cs.Name)),
+        @('Manufacturer',    (HtmlEncode $cs.Manufacturer)),
+        @('Model',           (HtmlEncode $cs.Model)),
+        @('Server Type',     $serverTypeBadge),
+        @('Serial Number',   (HtmlEncode $bios.SerialNumber)),
+        @('BIOS Version',    (HtmlEncode $bios.SMBIOSBIOSVersion)),
+        @('Processors',      "$($cpu.Count) x $cpuNames"),
+        @('Total RAM',       "$totalRAM_GB GB"),
+        @('OS Name',         (HtmlEncode $os.Caption)),
+        @('OS Version',      (HtmlEncode $os.Version)),
+        @('OS Build',        (HtmlEncode $os.BuildNumber)),
+        @('OS Install Date', (HtmlEncode $installDate)),
+        @('Last Boot Time',  (HtmlEncode $lastBootTime))
+    )
+
+    $Sec0Html = BuildKVTable $rows0
+} catch {
+    $Sec0Html = "<p class='error'>Error retrieving Server Details: $(HtmlEncode $_.Exception.Message)</p>"
+}
+
+# ═══════════════════════════════════════════════════════════════════════════════
 # SECTION 1  -  CA IDENTITY & CONFIG
 # ═══════════════════════════════════════════════════════════════════════════════
 Write-Progress2 "Section 1: CA Identity & Config..."
@@ -1342,6 +1384,7 @@ td:nth-child(5) { max-width:360px; word-break:break-word; white-space:normal; }
 
 $CritFindingsHtml
 
+$(BuildSection 0  'Server Details'              $Sec0Html  ($Sec0Html  -match "class='error'") $true)
 $(BuildSection 1  'CA Identity & Config'            $Sec1Html  ($Sec1Html  -match "class='error'") $true)
 $(BuildSection 2  'ADCS Services Status'             $Sec2Html  ($Sec2Html  -match "class='error'") $true)
 $(BuildSection 3  'CA Certificate Validity'          $Sec3Html  ($Sec3Html  -match "class='error'") $true)
