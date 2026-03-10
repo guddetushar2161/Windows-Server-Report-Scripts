@@ -1,0 +1,418 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Server Health Check - </title>
+<style>
+/* ── CSS VARIABLES ── */
+:root {
+  --bg:       #0d1117;
+  --card:     #161b22;
+  --border:   #30363d;
+  --text:     #c9d1d9;
+  --muted:    #8b949e;
+  --link:     #e3a019;
+  --head-bg:  #010409;
+  --th-bg:    #21262d;
+  --tr-alt:   #1c2128;
+  --amber:    #e3a019;
+  --yellow:   #d29922;
+  --red:      #f85149;
+  --green:    #3fb950;
+  --blue:     #58a6ff;
+}
+[data-theme="light"] {
+  --bg:       #ffffff;
+  --card:     #f6f8fa;
+  --border:   #d0d7de;
+  --text:     #24292f;
+  --muted:    #57606a;
+  --link:     #9a6700;
+  --head-bg:  #fffbf0;
+  --th-bg:    #fdf6e3;
+  --tr-alt:   #fffcf0;
+  --amber:    #9a6700;
+  --yellow:   #9a6700;
+  --red:      #cf222e;
+  --green:    #1a7f37;
+  --blue:     #0969da;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+       background: var(--bg); color: var(--text); font-size: 14px; line-height: 1.5; }
+a    { color: var(--link); }
+code { font-family: Consolas,'SFMono-Regular',monospace; font-size: .85em;
+       background: var(--th-bg); padding: 1px 5px; border-radius: 4px; }
+
+/* ── LAYOUT ── */
+.page-wrap { max-width: 1280px; margin: 0 auto; padding: 0 20px 40px; }
+.header    { background: var(--head-bg); border-bottom: 2px solid var(--amber);
+             padding: 14px 24px; display: flex; align-items: center;
+             justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+.header-left  { display: flex; align-items: center; gap: 16px; }
+.header-title h1 { font-size: 1.25rem; font-weight: 700; color: var(--amber);
+                   display: flex; align-items: center; gap: 8px; }
+.header-title p  { font-size: .8rem; color: var(--muted); margin-top: 2px; }
+.logo-wrap  { max-height: 60px; }
+.theme-toggle { cursor: pointer; background: var(--card); border: 1px solid var(--amber);
+                color: var(--text); border-radius: 20px; padding: 6px 14px;
+                font-size: 12px; display: flex; align-items: center; gap: 6px; }
+.theme-toggle:hover { background: var(--th-bg); }
+
+/* ── SUMMARY BAR ── */
+.summary-bar { display: flex; flex-wrap: wrap; gap: 12px;
+               background: var(--card); border: 1px solid var(--border);
+               border-top: 2px solid var(--amber);
+               border-radius: 8px; padding: 16px 20px; margin: 20px 0; }
+.stat-card   { flex: 1 1 120px; text-align: center; }
+.stat-count  { font-size: 2rem; font-weight: 700; line-height: 1; }
+.stat-label  { font-size: .72rem; color: var(--muted); margin-top: 4px; }
+
+/* ── SECTION CARDS ── */
+.section-card { background: var(--card); border: 1px solid var(--border);
+                border-radius: 8px; margin-bottom: 14px; overflow: hidden; }
+.section-summary { display: flex; align-items: center; gap: 10px; cursor: pointer;
+                   padding: 13px 18px; list-style: none; user-select: none; }
+.section-summary::-webkit-details-marker { display: none; }
+.section-summary::marker { display: none; }
+.sec-arrow { font-size: 10px; color: var(--muted); display: inline-block;
+             transition: transform .2s; flex-shrink: 0; line-height: 1; }
+details[open] > .section-summary .sec-arrow { transform: rotate(90deg); }
+.section-summary:hover { background: var(--th-bg); }
+.sec-num   { background: var(--amber); color: #000; font-size: .7rem; font-weight: 700;
+             width: 22px; height: 22px; border-radius: 50%; display: flex;
+             align-items: center; justify-content: center; flex-shrink: 0; }
+.sec-title { font-weight: 600; font-size: .95rem; flex: 1; }
+.section-body { padding: 15px 18px; border-top: 1px solid var(--border); }
+h4 { font-size: .9rem; font-weight: 600; }
+
+/* ── TABLES ── */
+.table-wrap { overflow-x: auto; border-radius: 6px; border: 1px solid var(--border); }
+table       { width: 100%; border-collapse: collapse; font-size: 13px; }
+thead tr    { background: var(--th-bg); position: sticky; top: 0; z-index: 1; }
+th          { padding: 8px 12px; text-align: left; font-weight: 600;
+              border-bottom: 1px solid var(--border); white-space: nowrap; }
+td          { padding: 7px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+tbody tr:nth-child(even) { background: var(--tr-alt); }
+tbody tr:hover { background: var(--th-bg); }
+.kv-table td  { padding: 7px 12px; border-bottom: 1px solid var(--border); }
+.td-label     { font-weight: 600; white-space: nowrap; width: 220px; color: var(--muted); }
+.event-table td:nth-child(5) { max-width: 360px; word-break: break-word; white-space: normal; }
+
+/* ── DISK / RAM BARS ── */
+.disk-container  { display: flex; flex-direction: column; gap: 12px; margin-bottom: 12px; }
+.disk-row        { }
+.disk-label      { font-size: .85rem; margin-bottom: 4px; font-weight: 600; }
+.disk-bar-outer  { height: 18px; background: var(--th-bg); border-radius: 9px;
+                   overflow: hidden; margin-bottom: 4px; border: 1px solid var(--border); }
+.disk-bar-inner  { height: 100%; border-radius: 9px; transition: width .4s ease; }
+.disk-stat       { font-size: .8rem; color: var(--muted); }
+
+/* ── EVENT ROW HIGHLIGHT ── */
+.row-critical { background: rgba(248,81,73,.15) !important; }
+.row-error    { background: rgba(248,81,73,.08) !important; }
+
+/* ── BADGES ── */
+.badge { display: inline-block; font-size: .7rem; font-weight: 600; padding: 2px 8px;
+         border-radius: 20px; color: #fff; white-space: nowrap; }
+
+/* ── ALERTS ── */
+.error { color: #f85149; padding: 8px 12px; background: rgba(248,81,73,.1);
+         border-left: 3px solid #f85149; border-radius: 4px; }
+.warn  { color: #d29922; padding: 8px 12px; background: rgba(210,153,34,.1);
+         border-left: 3px solid #d29922; border-radius: 4px; }
+.info  { color: var(--muted); }
+
+/* ── FOOTER ── */
+.footer { border-top: 1px solid var(--border); padding: 18px 0;
+          margin-top: 24px; color: var(--muted); font-size: .8rem;
+          display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+
+/* ── RESPONSIVE ── */
+@media (max-width: 768px) {
+  .summary-bar { gap: 8px; }
+  .stat-card   { flex: 1 1 90px; }
+  .stat-count  { font-size: 1.4rem; }
+  .header      { flex-direction: column; align-items: flex-start; }
+}
+</style>
+</head>
+<body data-theme="dark">
+
+<!-- HEADER -->
+<div class="header">
+  <div class="header-left">
+    
+    <div class="header-title">
+      <h1>&#x1F5A5; Windows Server Health Check</h1>
+      <p> &nbsp;|&nbsp; Generated: Tuesday, 10 March 2026 12:39:02</p>
+    </div>
+  </div>
+  <button class="theme-toggle" onclick="toggleTheme()" title="Toggle Dark/Light mode">
+    <span id="theme-icon">&#x2600;&#xFE0F;</span> Toggle Theme
+  </button>
+</div>
+
+<!-- SUMMARY BAR -->
+<div class="page-wrap">
+<div class="summary-bar">
+  <div class="stat-card">
+    <div class="stat-count" style="font-size:.85rem;padding-top:10px;"><span style='color:var(--muted);'>Unknown</span></div>
+    <div class="stat-label">System Uptime</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-count" style="font-size:1.4rem;"><span style='color:#e3a019;font-weight:700;'>0%</span></div>
+    <div class="stat-label">CPU Load</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-count" style="font-size:1.4rem;"><span style='color:#e3a019;font-weight:700;'>0%</span></div>
+    <div class="stat-label">RAM Used</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-count" style="font-size:1.4rem;"><span style='color:#e3a019;font-weight:700;'>0%</span></div>
+    <div class="stat-label">Disk Used (worst)</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-count" style="font-size:1rem;padding-top:10px;"><span style='color:#f85149;font-weight:700;'>0 / 10</span></div>
+    <div class="stat-label">Services Running</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-count" style="font-size:.9rem;padding-top:10px;"><span style='color:#e3a019;font-weight:700;'>None</span></div>
+    <div class="stat-label">Pending Reboot</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-count c-red"
+         style="color:#f85149;">3</div>
+    <div class="stat-label">Critical Findings</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-count" style="font-size:.9rem;padding-top:10px;"><span class='badge' style='background:#f85149'>CRITICAL</span></div>
+    <div class="stat-label">Overall Status</div>
+  </div>
+</div>
+
+<!-- CRITICAL FINDINGS PANEL -->
+<div style='background:rgba(248,81,73,.12);border:1px solid #f85149;border-radius:8px;padding:14px 18px;margin-bottom:16px;'><strong style='color:#f85149;'>&#x26A0; 3 Critical Finding(s) Detected</strong><ul style='margin:.6rem 0 0 1.2rem;color:#f85149;'><li>Section 2 - Hardware inventory error: You cannot call a method on a null-valued expression.</li><li>Section 3 - OS is not activated</li><li>Section 9 - Firewall check error: The term &#39;Get-NetFirewallProfile&#39; is not recognized as a name of a cmdlet, function, script file, or executable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.</li></ul></div>
+
+<!-- 17 SECTIONS -->
+<details class='section-card' open>
+  <summary class='section-summary'>
+    <span class='sec-arrow'>&#9654;</span>
+    <span class='sec-num'>1</span>
+    <span class='sec-title'>System Identity</span>
+    <span style='color:#e3a019;'>&#x2714;</span>
+  </summary>
+  <div class='section-body'>
+<div class='table-wrap'><table class='kv-table'><tbody><tr><td class='td-label'>Hostname</td><td></td></tr><tr><td class='td-label'>FQDN</td><td>runnervm0kj6c.v2ftrpbx2epuxinv3kxj0pe2oh.yx.internal.cloudapp.net</td></tr><tr><td class='td-label'>IP Addresses</td><td></td></tr><tr><td class='td-label'>MAC Addresses</td><td></td></tr><tr><td class='td-label'>Domain / Group</td><td><span class='badge' style='background:#d29922'>Workgroup</span></td></tr><tr><td class='td-label'>Logged-on Users</td><td>N/A</td></tr><tr><td class='td-label'>Last Boot Time</td><td>N/A</td></tr><tr><td class='td-label'>System Uptime</td><td>Unknown</td></tr></tbody></table></div>
+  </div>
+</details>
+<details class='section-card' open>
+  <summary class='section-summary'>
+    <span class='sec-arrow'>&#9654;</span>
+    <span class='sec-num'>2</span>
+    <span class='sec-title'>Hardware Inventory</span>
+    <span style='color:#f85149;'>&#x2716;</span>
+  </summary>
+  <div class='section-body'>
+<p class='error'>Error retrieving hardware inventory: You cannot call a method on a null-valued expression.</p>
+  </div>
+</details>
+<details class='section-card' open>
+  <summary class='section-summary'>
+    <span class='sec-arrow'>&#9654;</span>
+    <span class='sec-num'>3</span>
+    <span class='sec-title'>OS Details</span>
+    <span style='color:#e3a019;'>&#x2714;</span>
+  </summary>
+  <div class='section-body'>
+<div class='table-wrap'><table class='kv-table'><tbody><tr><td class='td-label'>OS Name</td><td></td></tr><tr><td class='td-label'>OS Version</td><td></td></tr><tr><td class='td-label'>OS Build</td><td></td></tr><tr><td class='td-label'>Architecture</td><td></td></tr><tr><td class='td-label'>Install Date</td><td>N/A</td></tr><tr><td class='td-label'>Last Boot Time</td><td>N/A</td></tr><tr><td class='td-label'>Activation</td><td><span class='badge' style='background:#f85149'>Not Activated</span></td></tr><tr><td class='td-label'>Last Windows Update</td><td>Unable to check</td></tr></tbody></table></div>
+  </div>
+</details>
+<details class='section-card' open>
+  <summary class='section-summary'>
+    <span class='sec-arrow'>&#9654;</span>
+    <span class='sec-num'>4</span>
+    <span class='sec-title'>Disk Health</span>
+    <span style='color:#e3a019;'>&#x2714;</span>
+  </summary>
+  <div class='section-body'>
+<h4 style='margin:0 0 8px;'>Physical Disks</h4><p class='warn'>Physical disk info not available (Get-PhysicalDisk): The term &#39;Get-PhysicalDisk&#39; is not recognized as a name of a cmdlet, function, script file, or executable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.</p><h4 style='margin:14px 0 8px;'>Volume Usage</h4><p class='warn'>No fixed volumes found.</p>
+  </div>
+</details>
+<details class='section-card' open>
+  <summary class='section-summary'>
+    <span class='sec-arrow'>&#9654;</span>
+    <span class='sec-num'>5</span>
+    <span class='sec-title'>CPU &amp; Memory Real-Time</span>
+    <span style='color:#e3a019;'>&#x2714;</span>
+  </summary>
+  <div class='section-body'>
+<div style='display:flex;flex-wrap:wrap;gap:16px;margin-bottom:14px;'><div><div style='font-size:.75rem;color:var(--muted);margin-bottom:4px;'>CPU Load</div><span class='badge' style='background:#e3a019'>0%</span></div><div><div style='font-size:.75rem;color:var(--muted);margin-bottom:4px;'>Available RAM</div><strong>0 GB</strong></div><div><div style='font-size:.75rem;color:var(--muted);margin-bottom:4px;'>Committed</div><strong>N/A GB</strong></div></div><div class='disk-container'><div class='disk-row'><div class='disk-label'><strong>RAM Usage</strong></div><div class='disk-bar-outer'><div class='disk-bar-inner' style='width:0%;background:#e3a019;'></div></div><div class='disk-stat'>0 GB used / 0 GB total &mdash; 0% &nbsp;<span class='badge' style='background:#e3a019'>0%</span></div></div></div><h4 style='margin:12px 0 6px;'>Top 10 Processes &mdash; CPU Time</h4><div class='table-wrap'><table><thead><tr><th>Process</th><th>PID</th><th>CPU Time (s)</th><th>RAM (MB)</th></tr></thead><tbody><tr><td colspan='4' class='info'>No process data available.</td></tr></tbody></table></div><h4 style='margin:12px 0 6px;'>Top 10 Processes &mdash; RAM Usage</h4><div class='table-wrap'><table><thead><tr><th>Process</th><th>PID</th><th>CPU Time (s)</th><th>RAM (MB)</th></tr></thead><tbody><tr><td colspan='4' class='info'>No process data available.</td></tr></tbody></table></div>
+  </div>
+</details>
+<details class='section-card'>
+  <summary class='section-summary'>
+    <span class='sec-arrow'>&#9654;</span>
+    <span class='sec-num'>6</span>
+    <span class='sec-title'>Network Adapters</span>
+    <span style='color:#e3a019;'>&#x2714;</span>
+  </summary>
+  <div class='section-body'>
+<p class='warn'>No network adapters found.</p>
+  </div>
+</details>
+<details class='section-card'>
+  <summary class='section-summary'>
+    <span class='sec-arrow'>&#9654;</span>
+    <span class='sec-num'>7</span>
+    <span class='sec-title'>Windows Services (Critical)</span>
+    <span style='color:#e3a019;'>&#x2714;</span>
+  </summary>
+  <div class='section-body'>
+<div class='table-wrap'><table><thead><tr><th>Service Name</th><th>Display Name</th><th>Status</th><th>Start Type</th></tr></thead><tbody><tr><td><code>WinRM</code></td><td></td><td><span class='badge' style='background:#484f58'>Not Found</span></td><td>N/A</td></tr><tr><td><code>wuauserv</code></td><td></td><td><span class='badge' style='background:#484f58'>Not Found</span></td><td>N/A</td></tr><tr><td><code>RpcSs</code></td><td></td><td><span class='badge' style='background:#484f58'>Not Found</span></td><td>N/A</td></tr><tr><td><code>LanmanServer</code></td><td></td><td><span class='badge' style='background:#484f58'>Not Found</span></td><td>N/A</td></tr><tr><td><code>LanmanWorkstation</code></td><td></td><td><span class='badge' style='background:#484f58'>Not Found</span></td><td>N/A</td></tr><tr><td><code>EventLog</code></td><td></td><td><span class='badge' style='background:#484f58'>Not Found</span></td><td>N/A</td></tr><tr><td><code>PlugPlay</code></td><td></td><td><span class='badge' style='background:#484f58'>Not Found</span></td><td>N/A</td></tr><tr><td><code>CryptSvc</code></td><td></td><td><span class='badge' style='background:#484f58'>Not Found</span></td><td>N/A</td></tr><tr><td><code>Themes</code></td><td></td><td><span class='badge' style='background:#484f58'>Not Found</span></td><td>N/A</td></tr><tr><td><code>Spooler</code></td><td></td><td><span class='badge' style='background:#484f58'>Not Found</span></td><td>N/A</td></tr></tbody></table></div><p class='info' style='margin-top:8px;'>0 of 10 critical service(s) running.</p>
+  </div>
+</details>
+<details class='section-card'>
+  <summary class='section-summary'>
+    <span class='sec-arrow'>&#9654;</span>
+    <span class='sec-num'>8</span>
+    <span class='sec-title'>Installed Roles &amp; Features</span>
+    <span style='color:#e3a019;'>&#x2714;</span>
+  </summary>
+  <div class='section-body'>
+<p class='warn'>Get-WindowsFeature is not available on this edition (Server Core or client OS). </p>
+  </div>
+</details>
+<details class='section-card'>
+  <summary class='section-summary'>
+    <span class='sec-arrow'>&#9654;</span>
+    <span class='sec-num'>9</span>
+    <span class='sec-title'>Windows Firewall</span>
+    <span style='color:#f85149;'>&#x2716;</span>
+  </summary>
+  <div class='section-body'>
+<p class='error'>Error checking Windows Firewall: The term &#39;Get-NetFirewallProfile&#39; is not recognized as a name of a cmdlet, function, script file, or executable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.</p>
+  </div>
+</details>
+<details class='section-card'>
+  <summary class='section-summary'>
+    <span class='sec-arrow'>&#9654;</span>
+    <span class='sec-num'>10</span>
+    <span class='sec-title'>Windows Defender / Security</span>
+    <span style='color:#e3a019;'>&#x2714;</span>
+  </summary>
+  <div class='section-body'>
+<p class='warn'>Windows Defender status not available (may not be installed or running): The term &#39;Get-MpComputerStatus&#39; is not recognized as a name of a cmdlet, function, script file, or executable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.</p>
+  </div>
+</details>
+<details class='section-card'>
+  <summary class='section-summary'>
+    <span class='sec-arrow'>&#9654;</span>
+    <span class='sec-num'>11</span>
+    <span class='sec-title'>Pending Reboots</span>
+    <span style='color:#e3a019;'>&#x2714;</span>
+  </summary>
+  <div class='section-body'>
+<div class='table-wrap'><table class='kv-table'><tbody><tr><td class='td-label'>Reboot Status</td><td><span class='badge' style='background:#e3a019'>No Reboot Pending</span></td></tr><tr><td class='td-label'>Windows Update Pending</td><td>False</td></tr><tr><td class='td-label'>CBS Pending</td><td>False</td></tr><tr><td class='td-label'>PendingFileRenameOperations</td><td>False</td></tr><tr><td class='td-label'>SCCM Pending</td><td>False</td></tr></tbody></table></div>
+  </div>
+</details>
+<details class='section-card'>
+  <summary class='section-summary'>
+    <span class='sec-arrow'>&#9654;</span>
+    <span class='sec-num'>12</span>
+    <span class='sec-title'>Local Users &amp; Groups</span>
+    <span style='color:#e3a019;'>&#x2714;</span>
+  </summary>
+  <div class='section-body'>
+<h4 style='margin:0 0 8px;'>Local Administrators Group Members</h4><p class='warn'>Could not enumerate Administrators group members.</p>
+  </div>
+</details>
+<details class='section-card'>
+  <summary class='section-summary'>
+    <span class='sec-arrow'>&#9654;</span>
+    <span class='sec-num'>13</span>
+    <span class='sec-title'>Shared Folders</span>
+    <span style='color:#e3a019;'>&#x2714;</span>
+  </summary>
+  <div class='section-body'>
+<p class='info'>No non-default shares found on this server.</p>
+  </div>
+</details>
+<details class='section-card'>
+  <summary class='section-summary'>
+    <span class='sec-arrow'>&#9654;</span>
+    <span class='sec-num'>14</span>
+    <span class='sec-title'>Scheduled Tasks (Custom)</span>
+    <span style='color:#e3a019;'>&#x2714;</span>
+  </summary>
+  <div class='section-body'>
+<p class='info'>No non-Microsoft scheduled tasks found.</p>
+  </div>
+</details>
+<details class='section-card'>
+  <summary class='section-summary'>
+    <span class='sec-arrow'>&#9654;</span>
+    <span class='sec-num'>15</span>
+    <span class='sec-title'>Event Log Summary</span>
+    <span style='color:#e3a019;'>&#x2714;</span>
+  </summary>
+  <div class='section-body'>
+<div style='display:flex;flex-wrap:wrap;gap:16px;margin-bottom:12px;'><div style='text-align:center;'><div style='font-size:1.6rem;font-weight:700;color:#e3a019;'>0</div><div style='font-size:.75rem;color:var(--muted);'>System log events</div></div><div style='text-align:center;'><div style='font-size:1.6rem;font-weight:700;color:#e3a019;'>0</div><div style='font-size:.75rem;color:var(--muted);'>Application log events</div></div><div style='text-align:center;'><div style='font-size:1.6rem;font-weight:700;color:#e3a019'>0</div><div style='font-size:.75rem;color:var(--muted);'>Critical events</div></div></div><p style='color:#e3a019;'>&#x2714; No Critical or Error events in the last 24 hours.</p>
+  </div>
+</details>
+<details class='section-card'>
+  <summary class='section-summary'>
+    <span class='sec-arrow'>&#9654;</span>
+    <span class='sec-num'>16</span>
+    <span class='sec-title'>RDP &amp; Remote Management</span>
+    <span style='color:#e3a019;'>&#x2714;</span>
+  </summary>
+  <div class='section-body'>
+<div class='table-wrap'><table class='kv-table'><tbody><tr><td class='td-label'>RDP Enabled</td><td><span class='badge' style='background:#484f58'>Disabled</span></td></tr><tr><td class='td-label'>RDP Port</td><td>3389</td></tr><tr><td class='td-label'>NLA Required</td><td><span class='badge' style='background:#d29922'>Not Required</span></td></tr><tr><td class='td-label'>WinRM Status</td><td><span class='badge' style='background:#f85149'>Unknown</span></td></tr></tbody></table></div>
+  </div>
+</details>
+<details class='section-card'>
+  <summary class='section-summary'>
+    <span class='sec-arrow'>&#9654;</span>
+    <span class='sec-num'>17</span>
+    <span class='sec-title'>Time Synchronisation</span>
+    <span style='color:#e3a019;'>&#x2714;</span>
+  </summary>
+  <div class='section-body'>
+<div class='table-wrap'><table class='kv-table'><tbody><tr><td class='td-label'>Time Source</td><td>Unknown</td></tr><tr><td class='td-label'>Current Offset</td><td><span class='badge' style='background:#e3a019'>0 s</span></td></tr><tr><td class='td-label'>Offset (raw)</td><td>Unknown</td></tr><tr><td class='td-label'>Time Peers</td><td>N/A</td></tr><tr><td class='td-label'>Server Local Time</td><td>2026-03-10 12:39:02 +00:00</td></tr></tbody></table></div>
+  </div>
+</details>
+
+<!-- FOOTER -->
+<div class="footer">
+  <div>
+    <strong>Windows Server Health Check v1.0.0</strong> &nbsp;|&nbsp;
+    Server:  &nbsp;|&nbsp;
+    Generated: Tuesday, 10 March 2026 12:39:02 &nbsp;|&nbsp;
+    Duration: 00:00:02
+  </div>
+  <div>Created by <a href='https://tushargudde.tech' target='_blank' style='color:var(--link);'>Tushar Gudde</a></div>
+</div>
+
+</div><!-- end page-wrap -->
+
+<script>
+function toggleTheme() {
+  var b = document.body;
+  var i = document.getElementById('theme-icon');
+  if (b.getAttribute('data-theme') === 'dark') {
+    b.setAttribute('data-theme', 'light');
+    i.textContent = '\uD83C\uDF19';
+  } else {
+    b.setAttribute('data-theme', 'dark');
+    i.textContent = '\u2600\uFE0F';
+  }
+}
+</script>
+</body>
+</html>
