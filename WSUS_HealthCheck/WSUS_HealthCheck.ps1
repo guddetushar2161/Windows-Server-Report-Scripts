@@ -1,4 +1,4 @@
-#Requires -Version 5.1
+﻿#Requires -Version 5.1
 <#
 .SYNOPSIS
     Comprehensive WSUS (Windows Server Update Services) Health Check Script

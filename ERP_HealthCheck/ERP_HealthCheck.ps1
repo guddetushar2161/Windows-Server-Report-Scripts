@@ -1,4 +1,4 @@
-#Requires -Version 5.1
+﻿#Requires -Version 5.1
 <#
 .SYNOPSIS
     Comprehensive ERP Server Health Check Script (ERP-Agnostic)

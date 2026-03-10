@@ -1,4 +1,4 @@
-#Requires -Version 5.1
+﻿#Requires -Version 5.1
 <#
 .SYNOPSIS
     Email alert companion for ERP_HealthCheck.ps1
@@ -261,7 +261,7 @@ Write-Host ""
 # Sends a test email to verify SMTP settings without needing a status file.
 # ════════════════════════════════════════════════════════════════════════════════
 if ($TestEmail) {
-    Write-Log "TEST EMAIL MODE — verifying SMTP connectivity..." 'Cyan'
+    Write-Log "TEST EMAIL MODE - verifying SMTP connectivity..." 'Cyan'
     Write-Log "  SMTP Server : $SmtpServer : $SmtpPort  (SSL: $SmtpUseSsl)"
     Write-Log "  From        : $FromAddress"
     Write-Log "  To          : $($ToAddresses -join ', ')"

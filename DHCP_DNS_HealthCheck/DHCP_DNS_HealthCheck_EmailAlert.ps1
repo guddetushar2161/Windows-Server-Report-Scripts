@@ -1,4 +1,4 @@
-#Requires -Version 5.1
+﻿#Requires -Version 5.1
 <#
 .SYNOPSIS
     Email alert companion for DHCP_DNS_HealthCheck.ps1
@@ -213,7 +213,7 @@ Write-Host ""
 # -TestEmail MODE
 # ════════════════════════════════════════════════════════════════════════════════
 if ($TestEmail) {
-    Write-Log "TEST EMAIL MODE — verifying SMTP connectivity..."
+    Write-Log "TEST EMAIL MODE - verifying SMTP connectivity..."
     Write-Log "  SMTP Server : $SmtpServer : $SmtpPort  (SSL: $SmtpUseSsl)"
     Write-Log "  From        : $FromAddress"
     Write-Log "  To          : $($ToAddresses -join ', ')"

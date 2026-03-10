@@ -1,4 +1,4 @@
-#Requires -Version 5.1
+﻿#Requires -Version 5.1
 <#
 .SYNOPSIS
     Email alert companion for WSUS_HealthCheck.ps1
@@ -131,7 +131,7 @@ function Build-HtmlEmail {
                    elseif ($IsCritical) { '#da3633' }
                    else             { '#238636' }
 
-    $statusLabel = if ($IsTest)         { '&#x1F9EA; TEST EMAIL — SMTP Connectivity Check' }
+    $statusLabel = if ($IsTest)         { '&#x1F9EA; TEST EMAIL - SMTP Connectivity Check' }
                    elseif ($IsCritical) { '&#x26A0; CRITICAL ALERT' }
                    else                 { '&#x2714; HEALTHY STATE' }
 
@@ -265,7 +265,7 @@ Write-Host ""
 # If the email arrives in your inbox, the configuration is correct.
 # ════════════════════════════════════════════════════════════════════════════════
 if ($TestEmail) {
-    Write-Log "TEST EMAIL MODE — verifying SMTP connectivity..." 'Cyan'
+    Write-Log "TEST EMAIL MODE - verifying SMTP connectivity..." 'Cyan'
     Write-Log "  SMTP Server : $SmtpServer : $SmtpPort  (SSL: $SmtpUseSsl)"
     Write-Log "  From        : $FromAddress"
     Write-Log "  To          : $($ToAddresses -join ', ')"
