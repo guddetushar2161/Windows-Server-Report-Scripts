@@ -1,4 +1,4 @@
-﻿#Requires -Version 5.1
+#Requires -Version 5.1
 <#
 .SYNOPSIS
     Email alert companion for ADCS_HealthCheck.ps1
@@ -8,7 +8,7 @@
     ADCS_HealthCheck.ps1 and sends a formatted HTML email notification via SMTP.
 
     A built-in -TestEmail switch verifies SMTP connectivity end-to-end before you
-    rely on scheduled alerts — if the test email arrives, the SMTP settings are
+    rely on scheduled alerts - if the test email arrives, the SMTP settings are
     correct and real alerts will work.
 
 .EXAMPLE
@@ -56,9 +56,9 @@ param(
     [System.Management.Automation.PSCredential]$SmtpCredential = $null
 )
 
-# ════════════════════════════════════════════════════════════════════════════════
+# ================================================================================
 # CONFIGURATION
-# ════════════════════════════════════════════════════════════════════════════════
+# ================================================================================
 
 $SmtpServer  = 'smtp.yourdomain.com'
 $SmtpPort    = 587
@@ -76,13 +76,13 @@ $AlertOnCritical  = $true
 $AlertOnHealthy   = $false
 $MaxFilesToProcess = 1
 
-# ════════════════════════════════════════════════════════════════════════════════
+# ================================================================================
 
 $ScriptVersion = '1.0.0'
 $ScriptDir     = Split-Path -Parent $MyInvocation.MyCommand.Definition
 if ([string]::IsNullOrEmpty($ScriptDir)) { $ScriptDir = $PWD.Path }
 
-# ── HELPER FUNCTIONS ──────────────────────────────────────────────────────────
+# -- HELPER FUNCTIONS ----------------------------------------------------------
 function Write-Log {
     param([string]$Msg, [string]$Color = 'Cyan')
     Write-Host "  [$(Get-Date -Format 'HH:mm:ss')] $Msg" -ForegroundColor $Color
@@ -223,16 +223,16 @@ function Send-StatusEmail {
     }
 }
 
-# ── BANNER ────────────────────────────────────────────────────────────────────
+# -- BANNER --------------------------------------------------------------------
 Write-Host ""
 Write-Host "+==============================================================+" -ForegroundColor DarkRed
 Write-Host "|   ADCS PKI Health Check - Email Alert  v$ScriptVersion             |" -ForegroundColor DarkRed
 Write-Host "+==============================================================+" -ForegroundColor DarkRed
 Write-Host ""
 
-# ════════════════════════════════════════════════════════════════════════════════
+# ================================================================================
 # -TestEmail MODE
-# ════════════════════════════════════════════════════════════════════════════════
+# ================================================================================
 if ($TestEmail) {
     Write-Log "TEST EMAIL MODE - verifying SMTP connectivity..." 'Cyan'
     Write-Log "  SMTP Server : $SmtpServer : $SmtpPort  (SSL: $SmtpUseSsl)"
@@ -291,9 +291,9 @@ if ($TestEmail) {
     exit 0
 }
 
-# ════════════════════════════════════════════════════════════════════════════════
+# ================================================================================
 # SINGLE-FILE MODE
-# ════════════════════════════════════════════════════════════════════════════════
+# ================================================================================
 if (-not [string]::IsNullOrWhiteSpace($StatusFile)) {
     if (-not (Test-Path $StatusFile)) {
         Write-Warning "Status file not found: $StatusFile"
@@ -320,9 +320,9 @@ if (-not [string]::IsNullOrWhiteSpace($StatusFile)) {
     exit 0
 }
 
-# ════════════════════════════════════════════════════════════════════════════════
+# ================================================================================
 # FOLDER SCAN MODE (default)
-# ════════════════════════════════════════════════════════════════════════════════
+# ================================================================================
 if ([string]::IsNullOrWhiteSpace($ReportsFolder)) {
     $ReportsFolder = Join-Path $ScriptDir 'Reports'
 }

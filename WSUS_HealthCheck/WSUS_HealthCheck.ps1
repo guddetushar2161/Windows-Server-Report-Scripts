@@ -1,4 +1,4 @@
-﻿#Requires -Version 5.1
+#Requires -Version 5.1
 <#
 .SYNOPSIS
     Comprehensive WSUS (Windows Server Update Services) Health Check Script
@@ -29,7 +29,7 @@
     Compatible : Windows Server 2016, 2019, 2022
 #>
 
-# ── CONFIGURATION ─────────────────────────────────────────────────────────────
+# -- CONFIGURATION -------------------------------------------------------------
 # Company Branding
 $CompanyLogoURL = ''                         # URL/path to company logo (PNG/SVG). Leave blank to skip.
 $CompanyWebsite = 'https://tushargudde.tech' # Company website URL for logo hyperlink.
@@ -56,14 +56,14 @@ $CleanupStaleDays = 30
 # alongside every HTML report.  The WSUS_HealthCheck_EmailAlert.ps1 script reads these
 # files to send health-state email notifications.
 $EnableStatusFile = $true
-# ──────────────────────────────────────────────────────────────────────────────
+# ------------------------------------------------------------------------------
 
 $ScriptVersion = '2.1.0'
 $StartTime     = Get-Date
 $ScriptDir     = Split-Path -Parent $MyInvocation.MyCommand.Definition
 if ([string]::IsNullOrEmpty($ScriptDir)) { $ScriptDir = $PWD.Path }
 
-# ── REPORTS FOLDER ────────────────────────────────────────────────────────────
+# -- REPORTS FOLDER ------------------------------------------------------------
 $ReportsDir = Join-Path $ScriptDir 'Reports'
 if (-not (Test-Path $ReportsDir)) {
     try { New-Item -ItemType Directory -Path $ReportsDir -Force | Out-Null }
@@ -72,7 +72,7 @@ if (-not (Test-Path $ReportsDir)) {
 $ReportStamp = "WSUS_Health_{0}" -f (Get-Date -Format 'yyyyMMdd_HHmmss')
 $ReportFile  = Join-Path $ReportsDir ($ReportStamp + '.html')
 
-# ── HELPER FUNCTIONS ──────────────────────────────────────────────────────────
+# -- HELPER FUNCTIONS ----------------------------------------------------------
 function HtmlEncode {
     param([string]$text)
     if ([string]::IsNullOrEmpty($text)) { return '' }
@@ -146,9 +146,9 @@ Write-Host "|       WSUS Health Check  v$ScriptVersion                          
 Write-Host "+==============================================================+" -ForegroundColor DarkCyan
 Write-Host ""
 
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 # SECTION 0  -  SERVER DETAILS  (host running the script)
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 Write-Progress2 "Section 0: Gathering Server Details..."
 $Sec0Html = ''
 try {
@@ -192,7 +192,7 @@ try {
     $Sec0Html = "<p class='error'>Error retrieving Server Details: $(HtmlEncode $_.Exception.Message)</p>"
 }
 
-# ── CHECK FOR WSUS MODULE ────────────────────────────────────────────────────
+# -- CHECK FOR WSUS MODULE ----------------------------------------------------
 $WsusModuleAvailable = $false
 $WsusServer          = $null
 $WsusModuleError     = ''
@@ -218,9 +218,9 @@ if ($WsusModuleAvailable) {
     }
 }
 
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 # SECTION 1  -  WSUS SERVER INFO
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 Write-Progress2 "Section 1: WSUS Server Info..."
 $Sec1Html = ''
 $WsusServerName = $env:COMPUTERNAME
@@ -317,9 +317,9 @@ if (-not $WsusModuleAvailable) {
     }
 }
 
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 # SECTION 2  -  SYNCHRONIZATION STATUS
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 Write-Progress2 "Section 2: Synchronization Status..."
 $Sec2Html         = ''
 $LastSyncBadgeKpi = StatusBadge 'N/A' 'grey'
@@ -374,7 +374,7 @@ if (-not $WsusModuleAvailable) {
         try { $totalUpdates = $WsusServer.GetUpdateCount() } catch {}
         try { $failedSyncs  = $syncInfo.NumberOfSyncFailures } catch {}
 
-        # ── Detect "never synchronised" state ────────────────────────────────
+        # -- Detect "never synchronised" state --------------------------------
         # WSUS returns DateTime.MinValue + result 0 (NotProcessed) when the
         # server has never performed a sync.  The string 'Never' originates from
         # the $lastSyncTime default set above: the DateTime.MinValue guard (which
@@ -427,9 +427,9 @@ if (-not $WsusModuleAvailable) {
     }
 }
 
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 # SECTION 3  -  IIS APPLICATION POOL HEALTH
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 Write-Progress2 "Section 3: IIS Application Pool Health..."
 $Sec3Html = ''
 try {
@@ -502,9 +502,9 @@ $bindingHtml
     $CriticalFindings.Add("Section 3 - IIS health check error: $($_.Exception.Message)")
 }
 
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 # SECTION 4  -  DATABASE HEALTH
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 Write-Progress2 "Section 4: Database Health..."
 $Sec4Html = ''
 if (-not $WsusModuleAvailable) {
@@ -575,9 +575,9 @@ if (-not $WsusModuleAvailable) {
     }
 }
 
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 # SECTION 5  -  CLIENT REPORTING SUMMARY
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 Write-Progress2 "Section 5: Client Reporting Summary..."
 $Sec5Html       = ''
 $TotalClients   = 0
@@ -647,9 +647,9 @@ if (-not $WsusModuleAvailable) {
     }
 }
 
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 # SECTION 6  -  UPDATE COMPLIANCE OVERVIEW
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 Write-Progress2 "Section 6: Update Compliance Overview..."
 $Sec6Html          = ''
 $CompliancePct     = 0
@@ -778,9 +778,9 @@ $pctBarHtml
     }
 }
 
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 # SECTION 7  -  TOP 10 NON-COMPLIANT COMPUTERS
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 Write-Progress2 "Section 7: Top 10 Non-Compliant Computers..."
 $Sec7Html = ''
 
@@ -836,23 +836,23 @@ if (-not $WsusModuleAvailable) {
     }
 }
 
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 # SECTION 8  -  WSUS SERVICES STATUS
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 Write-Progress2 "Section 8: WSUS Services Status..."
 $Sec8Html = ''
 try {
     $serviceNames = @(
-        # ── Core WSUS services (always expected on a WSUS server) ───────────────
+        # -- Core WSUS services (always expected on a WSUS server) ---------------
         @{ Name = 'WsusService';             Display = 'WSUS Update Service (WsusService)';             Critical = $true  },
         @{ Name = 'W3Svc';                   Display = 'IIS World Wide Web Publishing (W3Svc)';          Critical = $true  },
         @{ Name = 'WAS';                     Display = 'IIS Process Activation Service (WAS)';           Critical = $true  },
         @{ Name = 'IISADMIN';                Display = 'IIS Admin Service (IISADMIN)';                   Critical = $true  },
-        # ── Database services – exactly one will be present per environment ─────
+        # -- Database services - exactly one will be present per environment -----
         @{ Name = 'MSSQL$MICROSOFT##WID';    Display = 'Windows Internal Database (WID)';               Critical = $false },
         @{ Name = 'MSSQLSERVER';             Display = 'SQL Server (MSSQLSERVER)';                       Critical = $false },
         @{ Name = 'UpdateServicesDbServer';  Display = 'WSUS DB Server Service (UpdateServicesDbServer)'; Critical = $false },
-        # ── Supporting services – required for correct WSUS operation ───────────
+        # -- Supporting services - required for correct WSUS operation -----------
         @{ Name = 'BITS';                    Display = 'Background Intelligent Transfer Service (BITS)'; Critical = $true  },
         @{ Name = 'wuauserv';                Display = 'Windows Update Agent (wuauserv)';                Critical = $false },  # server also uses WU for self-patching; not critical for WSUS operation
         @{ Name = 'cryptsvc';                Display = 'Cryptographic Services (cryptsvc)';              Critical = $true  },
@@ -902,9 +902,9 @@ try {
     $CriticalFindings.Add("Section 8 - Service status error: $($_.Exception.Message)")
 }
 
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 # SECTION 9  -  DISK SPACE CHECK
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 Write-Progress2 "Section 9: Disk Space Check..."
 $Sec9Html     = ''
 $DiskSpaceKpi = 'N/A'
@@ -961,9 +961,9 @@ try {
     $CriticalFindings.Add("Section 9 - Disk space check error: $($_.Exception.Message)")
 }
 
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 # SECTION 10  -  EVENT LOG CHECK
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 Write-Progress2 "Section 10: Event Log Check..."
 $Sec10Html = ''
 try {
@@ -1023,9 +1023,9 @@ try {
     $CriticalFindings.Add("Section 10 - Event log check error: $($_.Exception.Message)")
 }
 
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 # SECTION 11  -  CLEANUP RECOMMENDATIONS
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 Write-Progress2 "Section 11: Cleanup Recommendations..."
 $Sec11Html      = ''
 $CleanupRows    = [System.Collections.Generic.List[string]]::new()
@@ -1113,9 +1113,9 @@ try {
     $CriticalFindings.Add("Section 11 - Cleanup check error: $($_.Exception.Message)")
 }
 
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 # SUMMARY KPI VALUES
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 $CritCount    = $CriticalFindings.Count
 $ReportDate   = (Get-Date).ToString('dddd, dd MMMM yyyy HH:mm:ss')
 $EndTime      = Get-Date
@@ -1134,7 +1134,7 @@ $DiskSpaceKpiHtml = if ($DiskSpaceKpi -ne 'N/A') {
 
 Write-Progress2 "Building HTML report..."
 
-# ── COMPANY LOGO HTML ─────────────────────────────────────────────────────────
+# -- COMPANY LOGO HTML ---------------------------------------------------------
 $LogoHtml = ''
 if (-not [string]::IsNullOrWhiteSpace($CompanyLogoURL)) {
     $logoImg = "<img src='$(HtmlEncode $CompanyLogoURL)' alt='Company Logo' style='max-height:60px;vertical-align:middle;'>"
@@ -1152,12 +1152,12 @@ $AuthorLink = if (-not [string]::IsNullOrWhiteSpace($CompanyWebsite)) {
     HtmlEncode $AuthorName
 }
 
-# ── OVERALL STATUS FOR HEADER ─────────────────────────────────────────────────
+# -- OVERALL STATUS FOR HEADER -------------------------------------------------
 $OverallStatusBadge = if ($CritCount -gt 0) { StatusBadge 'CRITICAL' 'red' } else { StatusBadge 'HEALTHY' 'green' }
 
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 # BUILD FULL HTML
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 $HtmlReport = @"
 <!DOCTYPE html>
 <html lang="en">
@@ -1166,7 +1166,7 @@ $HtmlReport = @"
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>WSUS Health Check Report - $(HtmlEncode $WsusServerName)</title>
 <style>
-/* ── CSS VARIABLES ── */
+/* -- CSS VARIABLES -- */
 :root {
   --bg:       #0d1117;
   --card:     #161b22;
@@ -1196,7 +1196,7 @@ $HtmlReport = @"
   --pre-bg:   #f6f8fa;
 }
 
-/* ── RESET & BASE ── */
+/* -- RESET & BASE -- */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -1215,7 +1215,7 @@ ul { margin: .4rem 0 .4rem 1.4rem; }
 code { font-family: 'SFMono-Regular', Consolas, monospace; font-size: 12px;
        background: var(--th-bg); padding: 2px 6px; border-radius: 4px; }
 
-/* ── LAYOUT ── */
+/* -- LAYOUT -- */
 .page-wrap  { max-width: 1400px; margin: 0 auto; padding: 0 16px 40px; }
 .header     { background: var(--head-bg); border-bottom: 1px solid var(--border);
               padding: 16px 24px; display: flex; align-items: center;
@@ -1225,13 +1225,13 @@ code { font-family: 'SFMono-Regular', Consolas, monospace; font-size: 12px;
 .header-title h1 { font-size: 1.4rem; color: var(--text); }
 .header-title p  { font-size: .8rem; color: var(--muted); margin:0; }
 
-/* ── THEME TOGGLE ── */
+/* -- THEME TOGGLE -- */
 .theme-toggle { cursor: pointer; background: var(--card); border: 1px solid var(--border);
                 color: var(--text); border-radius: 20px; padding: 6px 14px;
                 font-size: 12px; display: flex; align-items: center; gap: 6px; }
 .theme-toggle:hover { background: var(--th-bg); }
 
-/* ── SUMMARY BAR ── */
+/* -- SUMMARY BAR -- */
 .summary-bar { display: flex; flex-wrap: wrap; gap: 12px;
                background: var(--card); border: 1px solid var(--border);
                border-radius: 8px; padding: 16px 20px; margin: 20px 0; }
@@ -1244,7 +1244,7 @@ code { font-family: 'SFMono-Regular', Consolas, monospace; font-size: 12px;
 .c-blue   { color: #58a6ff; }
 .c-muted  { color: var(--muted); }
 
-/* ── SECTION CARDS ── */
+/* -- SECTION CARDS -- */
 .section-card { background: var(--card); border: 1px solid var(--border);
                 border-radius: 8px; margin-bottom: 16px; overflow: hidden; }
 .section-summary { display: flex; align-items: center; gap: 10px; cursor: pointer;
@@ -1261,7 +1261,7 @@ details[open] > .section-summary .sec-arrow { transform: rotate(90deg); }
 .sec-title { font-weight: 600; font-size: .95rem; flex: 1; }
 .section-body { padding: 16px 18px; border-top: 1px solid var(--border); }
 
-/* ── TABLES ── */
+/* -- TABLES -- */
 .table-wrap { overflow-x: auto; border-radius: 6px; border: 1px solid var(--border); }
 table       { width: 100%; border-collapse: collapse; font-size: 13px; }
 thead tr    { background: var(--th-bg); position: sticky; top: 0; z-index: 1; }
@@ -1274,34 +1274,34 @@ tbody tr:hover { background: var(--th-bg); }
 .kv-table td { padding: 7px 12px; border-bottom: 1px solid var(--border); }
 .td-label   { font-weight: 600; white-space: nowrap; width: 220px; color: var(--muted); }
 
-/* ── EVENT ROW COLORS ── */
+/* -- EVENT ROW COLORS -- */
 .row-critical { background: rgba(218,54,51,.15) !important; }
 .row-error    { background: rgba(218,54,51,.08) !important; }
 .row-warning  { background: rgba(210,153,34,.12) !important; }
 
-/* ── BADGES ── */
+/* -- BADGES -- */
 .badge { display: inline-block; font-size: .7rem; font-weight: 600; padding: 2px 8px;
          border-radius: 20px; color: #fff; white-space: nowrap; }
 
-/* ── EVENT LOG TABLE ── */
+/* -- EVENT LOG TABLE -- */
 .event-table td:nth-child(5) {
   max-width: 320px;
   word-break: break-word;
   white-space: normal;
 }
 
-/* ── MESSAGE CLASSES ── */
+/* -- MESSAGE CLASSES -- */
 .error { color: #f85149; padding: 8px 12px; background: rgba(248,81,73,.1);
          border-left: 3px solid #f85149; border-radius: 4px; }
 .warn  { color: #d29922; }
 .info  { color: var(--muted); }
 
-/* ── FOOTER ── */
+/* -- FOOTER -- */
 .footer { border-top: 1px solid var(--border); padding: 20px 0;
           margin-top: 24px; color: var(--muted); font-size: .8rem;
           display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
 
-/* ── RESPONSIVE ── */
+/* -- RESPONSIVE -- */
 @media (max-width: 768px) {
   .summary-bar { gap: 8px; }
   .stat-card   { flex: 1 1 100px; }
@@ -1404,9 +1404,9 @@ function toggleTheme() {
 </html>
 "@
 
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 # WRITE REPORT FILE
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 try {
     [System.IO.File]::WriteAllText($ReportFile, $HtmlReport, [System.Text.Encoding]::UTF8)
     Write-Host ""
@@ -1415,10 +1415,10 @@ try {
     Write-Warning "Failed to write report: $_"
 }
 
-# ═══════════════════════════════════════════════════════════════════════════════
-# STATUS SUMMARY FILE  (plain-text companion — _HEALTHY.txt or _CRITICAL.txt)
+# ===============================================================================
+# STATUS SUMMARY FILE  (plain-text companion - _HEALTHY.txt or _CRITICAL.txt)
 # WSUS_HealthCheck_EmailAlert.ps1 reads these files to send email notifications.
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 $isCritical   = $CriticalFindings.Count -gt 0
 $statusSuffix = if ($isCritical) { '_CRITICAL' } else { '_HEALTHY' }
 $StatusFile   = Join-Path $ReportsDir ($ReportStamp + $statusSuffix + '.txt')

@@ -1,10 +1,10 @@
-﻿#Requires -Version 5.1
+#Requires -Version 5.1
 <#
 .SYNOPSIS
     Universal Windows Server Health Check Script
 
 .DESCRIPTION
-    Performs a comprehensive baseline health check of any Windows Server —
+    Performs a comprehensive baseline health check of any Windows Server -
     member server, file server, print server, utility server, or standalone box.
     No role-specific modules are required; uses only built-in PowerShell
     cmdlets, WMI/CIM, and .NET.  Every section is individually wrapped in
@@ -37,7 +37,7 @@
     Companion  : Server_HealthCheck_EmailAlert.ps1
 #>
 
-# ── CONFIGURATION ─────────────────────────────────────────────────────────────
+# -- CONFIGURATION -------------------------------------------------------------
 $CompanyLogoURL = ''                         # URL/path to logo image. Leave blank to skip.
 $CompanyWebsite = 'https://tushargudde.tech' # Company website URL for logo hyperlink.
 $AuthorName     = 'Tushar Gudde'             # Author name shown in the footer.
@@ -58,14 +58,14 @@ $CriticalServices = @(
 # Write a plain-text companion status file (_HEALTHY.txt / _CRITICAL.txt)
 # alongside every HTML report.  Required by Server_HealthCheck_EmailAlert.ps1.
 $EnableStatusFile = $true
-# ──────────────────────────────────────────────────────────────────────────────
+# ------------------------------------------------------------------------------
 
 $ScriptVersion = '1.0.0'
 $StartTime     = Get-Date
 $ScriptDir     = Split-Path -Parent $MyInvocation.MyCommand.Definition
 if ([string]::IsNullOrEmpty($ScriptDir)) { $ScriptDir = $PWD.Path }
 
-# ── REPORTS FOLDER ────────────────────────────────────────────────────────────
+# -- REPORTS FOLDER ------------------------------------------------------------
 $ReportsDir = Join-Path $ScriptDir 'Reports'
 if (-not (Test-Path $ReportsDir)) {
     try { New-Item -ItemType Directory -Path $ReportsDir -Force | Out-Null }
@@ -74,7 +74,7 @@ if (-not (Test-Path $ReportsDir)) {
 $ReportStamp = "Server_Health_{0}" -f (Get-Date -Format 'yyyyMMdd_HHmmss')
 $ReportFile  = Join-Path $ReportsDir ($ReportStamp + '.html')
 
-# ── HELPER FUNCTIONS ──────────────────────────────────────────────────────────
+# -- HELPER FUNCTIONS ----------------------------------------------------------
 function HtmlEncode {
     param([string]$text)
     if ([string]::IsNullOrEmpty($text)) { return '' }
@@ -140,10 +140,10 @@ $body
 "@
 }
 
-# ── CRITICAL FINDINGS LIST ────────────────────────────────────────────────────
+# -- CRITICAL FINDINGS LIST ----------------------------------------------------
 $CriticalFindings = [System.Collections.Generic.List[string]]::new()
 
-# ── DEFAULT KPI VARIABLES ────────────────────────────────────────────────────
+# -- DEFAULT KPI VARIABLES ----------------------------------------------------
 $ServerHostname = $env:COMPUTERNAME
 $UptimeStr      = 'Unknown'
 $CpuPct         = 0
@@ -161,9 +161,9 @@ Write-Host "|   Server: $($env:COMPUTERNAME)" -ForegroundColor DarkYellow
 Write-Host "+==============================================================+" -ForegroundColor DarkYellow
 Write-Host ""
 
-# ═══════════════════════════════════════════════════════════════════════════════
-# SECTION 1 — SYSTEM IDENTITY
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
+# SECTION 1 - SYSTEM IDENTITY
+# ===============================================================================
 Write-Progress2 "Section 1: System Identity..."
 $Sec1Html = ''
 try {
@@ -224,9 +224,9 @@ try {
     $CriticalFindings.Add("Section 1 - System identity error: $($_.Exception.Message)")
 }
 
-# ═══════════════════════════════════════════════════════════════════════════════
-# SECTION 2 — HARDWARE INVENTORY
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
+# SECTION 2 - HARDWARE INVENTORY
+# ===============================================================================
 Write-Progress2 "Section 2: Hardware Inventory..."
 $Sec2Html = ''
 try {
@@ -279,9 +279,9 @@ try {
     $CriticalFindings.Add("Section 2 - Hardware inventory error: $($_.Exception.Message)")
 }
 
-# ═══════════════════════════════════════════════════════════════════════════════
-# SECTION 3 — OS DETAILS
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
+# SECTION 3 - OS DETAILS
+# ===============================================================================
 Write-Progress2 "Section 3: OS Details..."
 $Sec3Html = ''
 try {
@@ -331,14 +331,14 @@ try {
     $CriticalFindings.Add("Section 3 - OS details error: $($_.Exception.Message)")
 }
 
-# ═══════════════════════════════════════════════════════════════════════════════
-# SECTION 4 — DISK HEALTH
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
+# SECTION 4 - DISK HEALTH
+# ===============================================================================
 Write-Progress2 "Section 4: Disk Health..."
 $Sec4Html     = ''
 $DiskWorstPct = 0
 try {
-    # ── Physical disks ────────────────────────────────────────────────────────
+    # -- Physical disks --------------------------------------------------------
     $physHtml = ''
     try {
         $physDisks = @(Get-PhysicalDisk -ErrorAction Stop)
@@ -363,7 +363,7 @@ try {
         $physHtml = "<p class='warn'>Physical disk info not available (Get-PhysicalDisk): $(HtmlEncode $_.Exception.Message)</p>"
     }
 
-    # ── Logical volumes ───────────────────────────────────────────────────────
+    # -- Logical volumes -------------------------------------------------------
     $logicalDisks = @(Get-CimInstance Win32_LogicalDisk -Filter "DriveType=3" -ErrorAction Stop)
     $volHtml      = ''
     $diskBarHtml  = "<div class='disk-container'>"
@@ -427,9 +427,9 @@ try {
     $CriticalFindings.Add("Section 4 - Disk health error: $($_.Exception.Message)")
 }
 
-# ═══════════════════════════════════════════════════════════════════════════════
-# SECTION 5 — CPU & MEMORY REAL-TIME
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
+# SECTION 5 - CPU & MEMORY REAL-TIME
+# ===============================================================================
 Write-Progress2 "Section 5: CPU & Memory (real-time)..."
 $Sec5Html = ''
 try {
@@ -515,9 +515,9 @@ try {
     $CriticalFindings.Add("Section 5 - CPU/Memory check error: $($_.Exception.Message)")
 }
 
-# ═══════════════════════════════════════════════════════════════════════════════
-# SECTION 6 — NETWORK ADAPTERS
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
+# SECTION 6 - NETWORK ADAPTERS
+# ===============================================================================
 Write-Progress2 "Section 6: Network Adapters..."
 $Sec6Html = ''
 try {
@@ -560,9 +560,9 @@ try {
     $CriticalFindings.Add("Section 6 - Network adapter check error: $($_.Exception.Message)")
 }
 
-# ═══════════════════════════════════════════════════════════════════════════════
-# SECTION 7 — CRITICAL WINDOWS SERVICES
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
+# SECTION 7 - CRITICAL WINDOWS SERVICES
+# ===============================================================================
 Write-Progress2 "Section 7: Critical Windows Services..."
 $Sec7Html        = ''
 $SvcOkCount      = 0
@@ -611,9 +611,9 @@ foreach ($r in $ServiceResults) {
 $Sec7Html += "</tbody></table></div>"
 $Sec7Html += "<p class='info' style='margin-top:8px;'>$SvcOkCount of $SvcTotalCount critical service(s) running.</p>"
 
-# ═══════════════════════════════════════════════════════════════════════════════
-# SECTION 8 — INSTALLED ROLES & FEATURES
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
+# SECTION 8 - INSTALLED ROLES & FEATURES
+# ===============================================================================
 Write-Progress2 "Section 8: Installed Roles & Features..."
 $Sec8Html = ''
 try {
@@ -639,9 +639,9 @@ try {
     $Sec8Html = "<p class='warn'>Get-WindowsFeature is not available on this edition (Server Core or client OS). $([string]::Empty)</p>"
 }
 
-# ═══════════════════════════════════════════════════════════════════════════════
-# SECTION 9 — WINDOWS FIREWALL
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
+# SECTION 9 - WINDOWS FIREWALL
+# ===============================================================================
 Write-Progress2 "Section 9: Windows Firewall..."
 $Sec9Html = ''
 try {
@@ -666,9 +666,9 @@ try {
     $CriticalFindings.Add("Section 9 - Firewall check error: $($_.Exception.Message)")
 }
 
-# ═══════════════════════════════════════════════════════════════════════════════
-# SECTION 10 — WINDOWS DEFENDER / SECURITY
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
+# SECTION 10 - WINDOWS DEFENDER / SECURITY
+# ===============================================================================
 Write-Progress2 "Section 10: Windows Defender / Security..."
 $Sec10Html = ''
 try {
@@ -706,9 +706,9 @@ try {
     $Sec10Html = "<p class='warn'>Windows Defender status not available (may not be installed or running): $(HtmlEncode $_.Exception.Message)</p>"
 }
 
-# ═══════════════════════════════════════════════════════════════════════════════
-# SECTION 11 — PENDING REBOOTS
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
+# SECTION 11 - PENDING REBOOTS
+# ===============================================================================
 Write-Progress2 "Section 11: Pending Reboots..."
 $Sec11Html    = ''
 $PendingReboot = $false
@@ -763,9 +763,9 @@ try {
     $CriticalFindings.Add("Section 11 - Pending reboot check error: $($_.Exception.Message)")
 }
 
-# ═══════════════════════════════════════════════════════════════════════════════
-# SECTION 12 — LOCAL USERS & GROUPS
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
+# SECTION 12 - LOCAL USERS & GROUPS
+# ===============================================================================
 Write-Progress2 "Section 12: Local Users & Groups..."
 $Sec12Html = ''
 try {
@@ -815,9 +815,9 @@ try {
     $CriticalFindings.Add("Section 12 - Local users/groups error: $($_.Exception.Message)")
 }
 
-# ═══════════════════════════════════════════════════════════════════════════════
-# SECTION 13 — SHARED FOLDERS
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
+# SECTION 13 - SHARED FOLDERS
+# ===============================================================================
 Write-Progress2 "Section 13: Shared Folders..."
 $Sec13Html = ''
 try {
@@ -849,9 +849,9 @@ try {
     $CriticalFindings.Add("Section 13 - Shared folders error: $($_.Exception.Message)")
 }
 
-# ═══════════════════════════════════════════════════════════════════════════════
-# SECTION 14 — SCHEDULED TASKS (CUSTOM / NON-MICROSOFT)
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
+# SECTION 14 - SCHEDULED TASKS (CUSTOM / NON-MICROSOFT)
+# ===============================================================================
 Write-Progress2 "Section 14: Scheduled Tasks (custom)..."
 $Sec14Html = ''
 try {
@@ -899,9 +899,9 @@ try {
     $CriticalFindings.Add("Section 14 - Scheduled tasks error: $($_.Exception.Message)")
 }
 
-# ═══════════════════════════════════════════════════════════════════════════════
-# SECTION 15 — EVENT LOG SUMMARY
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
+# SECTION 15 - EVENT LOG SUMMARY
+# ===============================================================================
 Write-Progress2 "Section 15: Event Log Summary (last 24 hours)..."
 $Sec15Html = ''
 try {
@@ -971,9 +971,9 @@ try {
     $CriticalFindings.Add("Section 15 - Event log check error: $($_.Exception.Message)")
 }
 
-# ═══════════════════════════════════════════════════════════════════════════════
-# SECTION 16 — RDP & REMOTE MANAGEMENT
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
+# SECTION 16 - RDP & REMOTE MANAGEMENT
+# ===============================================================================
 Write-Progress2 "Section 16: RDP & Remote Management..."
 $Sec16Html = ''
 try {
@@ -1021,9 +1021,9 @@ try {
     $CriticalFindings.Add("Section 16 - RDP check error: $($_.Exception.Message)")
 }
 
-# ═══════════════════════════════════════════════════════════════════════════════
-# SECTION 17 — TIME SYNCHRONISATION
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
+# SECTION 17 - TIME SYNCHRONISATION
+# ===============================================================================
 Write-Progress2 "Section 17: Time Synchronisation..."
 $Sec17Html = ''
 try {
@@ -1082,9 +1082,9 @@ try {
     $CriticalFindings.Add("Section 17 - Time sync check error: $($_.Exception.Message)")
 }
 
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 # KPI / SUMMARY TILES
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 $CritCount  = $CriticalFindings.Count
 $ReportDate = (Get-Date).ToString('dddd, dd MMMM yyyy HH:mm:ss')
 $EndTime    = Get-Date
@@ -1133,9 +1133,9 @@ $AuthorLink = if (-not [string]::IsNullOrWhiteSpace($CompanyWebsite)) {
 
 Write-Progress2 "Building HTML report..."
 
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 # BUILD FULL HTML REPORT
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 $HtmlReport = @"
 <!DOCTYPE html>
 <html lang="en">
@@ -1144,7 +1144,7 @@ $HtmlReport = @"
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Server Health Check - $(HtmlEncode $ServerHostname)</title>
 <style>
-/* ── CSS VARIABLES ── */
+/* -- CSS VARIABLES -- */
 :root {
   --bg:       #0d1117;
   --card:     #161b22;
@@ -1184,7 +1184,7 @@ a    { color: var(--link); }
 code { font-family: Consolas,'SFMono-Regular',monospace; font-size: .85em;
        background: var(--th-bg); padding: 1px 5px; border-radius: 4px; }
 
-/* ── LAYOUT ── */
+/* -- LAYOUT -- */
 .page-wrap { max-width: 1280px; margin: 0 auto; padding: 0 20px 40px; }
 .header    { background: var(--head-bg); border-bottom: 2px solid var(--amber);
              padding: 14px 24px; display: flex; align-items: center;
@@ -1199,7 +1199,7 @@ code { font-family: Consolas,'SFMono-Regular',monospace; font-size: .85em;
                 font-size: 12px; display: flex; align-items: center; gap: 6px; }
 .theme-toggle:hover { background: var(--th-bg); }
 
-/* ── SUMMARY BAR ── */
+/* -- SUMMARY BAR -- */
 .summary-bar { display: flex; flex-wrap: wrap; gap: 12px;
                background: var(--card); border: 1px solid var(--border);
                border-top: 2px solid var(--amber);
@@ -1208,7 +1208,7 @@ code { font-family: Consolas,'SFMono-Regular',monospace; font-size: .85em;
 .stat-count  { font-size: 2rem; font-weight: 700; line-height: 1; }
 .stat-label  { font-size: .72rem; color: var(--muted); margin-top: 4px; }
 
-/* ── SECTION CARDS ── */
+/* -- SECTION CARDS -- */
 .section-card { background: var(--card); border: 1px solid var(--border);
                 border-radius: 8px; margin-bottom: 14px; overflow: hidden; }
 .section-summary { display: flex; align-items: center; gap: 10px; cursor: pointer;
@@ -1226,7 +1226,7 @@ details[open] > .section-summary .sec-arrow { transform: rotate(90deg); }
 .section-body { padding: 15px 18px; border-top: 1px solid var(--border); }
 h4 { font-size: .9rem; font-weight: 600; }
 
-/* ── TABLES ── */
+/* -- TABLES -- */
 .table-wrap { overflow-x: auto; border-radius: 6px; border: 1px solid var(--border); }
 table       { width: 100%; border-collapse: collapse; font-size: 13px; }
 thead tr    { background: var(--th-bg); position: sticky; top: 0; z-index: 1; }
@@ -1239,7 +1239,7 @@ tbody tr:hover { background: var(--th-bg); }
 .td-label     { font-weight: 600; white-space: nowrap; width: 220px; color: var(--muted); }
 .event-table td:nth-child(5) { max-width: 360px; word-break: break-word; white-space: normal; }
 
-/* ── DISK / RAM BARS ── */
+/* -- DISK / RAM BARS -- */
 .disk-container  { display: flex; flex-direction: column; gap: 12px; margin-bottom: 12px; }
 .disk-row        { }
 .disk-label      { font-size: .85rem; margin-bottom: 4px; font-weight: 600; }
@@ -1248,27 +1248,27 @@ tbody tr:hover { background: var(--th-bg); }
 .disk-bar-inner  { height: 100%; border-radius: 9px; transition: width .4s ease; }
 .disk-stat       { font-size: .8rem; color: var(--muted); }
 
-/* ── EVENT ROW HIGHLIGHT ── */
+/* -- EVENT ROW HIGHLIGHT -- */
 .row-critical { background: rgba(248,81,73,.15) !important; }
 .row-error    { background: rgba(248,81,73,.08) !important; }
 
-/* ── BADGES ── */
+/* -- BADGES -- */
 .badge { display: inline-block; font-size: .7rem; font-weight: 600; padding: 2px 8px;
          border-radius: 20px; color: #fff; white-space: nowrap; }
 
-/* ── ALERTS ── */
+/* -- ALERTS -- */
 .error { color: #f85149; padding: 8px 12px; background: rgba(248,81,73,.1);
          border-left: 3px solid #f85149; border-radius: 4px; }
 .warn  { color: #d29922; padding: 8px 12px; background: rgba(210,153,34,.1);
          border-left: 3px solid #d29922; border-radius: 4px; }
 .info  { color: var(--muted); }
 
-/* ── FOOTER ── */
+/* -- FOOTER -- */
 .footer { border-top: 1px solid var(--border); padding: 18px 0;
           margin-top: 24px; color: var(--muted); font-size: .8rem;
           display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
 
-/* ── RESPONSIVE ── */
+/* -- RESPONSIVE -- */
 @media (max-width: 768px) {
   .summary-bar { gap: 8px; }
   .stat-card   { flex: 1 1 90px; }
@@ -1383,9 +1383,9 @@ function toggleTheme() {
 </html>
 "@
 
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 # WRITE HTML REPORT
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 try {
     [System.IO.File]::WriteAllText($ReportFile, $HtmlReport, [System.Text.Encoding]::UTF8)
     Write-Host ""
@@ -1394,9 +1394,9 @@ try {
     Write-Warning "Failed to write report: $_"
 }
 
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 # STATUS SUMMARY FILE  (_HEALTHY.txt or _CRITICAL.txt)
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 $isCritical   = $CriticalFindings.Count -gt 0
 $statusSuffix = if ($isCritical) { '_CRITICAL' } else { '_HEALTHY' }
 $StatusFile   = Join-Path $ReportsDir ($ReportStamp + $statusSuffix + '.txt')
@@ -1447,7 +1447,7 @@ if ($EnableStatusFile) {
     }
 }
 
-# ── CONSOLE SUMMARY ───────────────────────────────────────────────────────────
+# -- CONSOLE SUMMARY -----------------------------------------------------------
 Write-Host ""
 Write-Host "===============================================================" -ForegroundColor DarkYellow
 Write-Host "  Server Health Check complete.  Duration: $Duration" -ForegroundColor DarkYellow

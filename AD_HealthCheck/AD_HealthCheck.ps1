@@ -1,4 +1,4 @@
-﻿#Requires -Version 5.1
+#Requires -Version 5.1
 <#
 .SYNOPSIS
     Comprehensive Active Directory Health Check Script
@@ -15,7 +15,7 @@
     Permissions: Domain Admin or equivalent
 #>
 
-# ── CONFIGURATION ─────────────────────────────────────────────────────────────
+# -- CONFIGURATION -------------------------------------------------------------
 # Company Branding
 $CompanyLogoURL    = ''                          # URL/path to company logo (PNG/SVG). Leave blank to skip.
 $CompanyWebsite    = 'https://tushargudde.tech'                          # Company website URL for logo hyperlink.
@@ -32,7 +32,7 @@ $StaleThresholdDays = 90                         # Days of inactivity before fla
 # Output Settings
 # -- Status Summary File (saved next to the HTML report) --
 $EnableStatusFile       = $true                  # Write a plain-text status summary file alongside the HTML report
-# ──────────────────────────────────────────────────────────────────────────────
+# ------------------------------------------------------------------------------
 # NOTE: For email notifications, run AD_HealthCheck_EmailAlert.ps1 after this script.
 
 $ScriptVersion  = '2.1.0'
@@ -40,7 +40,7 @@ $StartTime      = Get-Date
 $ScriptDir      = Split-Path -Parent $MyInvocation.MyCommand.Definition
 if ([string]::IsNullOrEmpty($ScriptDir)) { $ScriptDir = $PWD.Path }
 
-# ── HELPER FUNCTIONS ──────────────────────────────────────────────────────────
+# -- HELPER FUNCTIONS ----------------------------------------------------------
 function HtmlEncode {
     param([string]$text)
     if ([string]::IsNullOrEmpty($text)) { return '' }
@@ -96,17 +96,17 @@ function Write-Progress2 {
 # Collect critical findings throughout all sections
 $CriticalFindings = [System.Collections.Generic.List[string]]::new()
 
-# ── REPORTS FOLDER ────────────────────────────────────────────────────────────
+# -- REPORTS FOLDER ------------------------------------------------------------
 $ReportsDir = Join-Path $ScriptDir 'Reports'
 if (-not (Test-Path $ReportsDir)) {
     try { New-Item -ItemType Directory -Path $ReportsDir -Force | Out-Null }
     catch { Write-Warning "Could not create Reports folder: $_" }
 }
 $ReportFile = Join-Path $ReportsDir ("AD_Health_{0}.html" -f (Get-Date -Format 'yyyyMMdd_HHmmss'))
-# Status summary file path — suffix determined after health evaluation (_HEALTHY or _CRITICAL)
+# Status summary file path - suffix determined after health evaluation (_HEALTHY or _CRITICAL)
 $ReportStamp = [System.IO.Path]::GetFileNameWithoutExtension($ReportFile) # e.g. AD_Health_20260308_181050
 
-# ── IMPORT ACTIVE DIRECTORY MODULE ───────────────────────────────────────────
+# -- IMPORT ACTIVE DIRECTORY MODULE -------------------------------------------
 $ADModuleAvailable = $false
 try {
     Import-Module ActiveDirectory -ErrorAction Stop
@@ -122,9 +122,9 @@ Write-Host "|        Active Directory Health Check  v$ScriptVersion             
 Write-Host "+==============================================================+" -ForegroundColor DarkCyan
 Write-Host ""
 
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 # SECTION 1  -  SERVER DETAILS  (host running the script)
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 Write-Progress2 "Section 1: Gathering Server Details..."
 $Sec0Html = ''
 try {
@@ -169,9 +169,9 @@ try {
     $Sec0Html = "<p class='error'>Error retrieving Server Details: $(HtmlEncode $_.Exception.Message)</p>"
 }
 
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 # SECTION 2  -  DOMAIN & FOREST INFO
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 Write-Progress2 "Section 2: Gathering Domain & Forest Info..."
 $Sec1Html = ''
 try {
@@ -212,9 +212,9 @@ try {
     $CriticalFindings.Add("Section 2  -  Domain/Forest Info error: $($_.Exception.Message)")
 }
 
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 # SECTION 3  -  DOMAIN CONTROLLER INVENTORY
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 Write-Progress2 "Section 3: Domain Controller Inventory..."
 $Sec2Html   = ''
 $AllDCs     = @()
@@ -254,9 +254,9 @@ try {
     $CriticalFindings.Add("Section 3  -  DC Inventory error: $($_.Exception.Message)")
 }
 
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 # SECTION 4  -  AD SERVICES STATUS PER DC
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 Write-Progress2 "Section 4: AD Services Status per DC..."
 $Sec3Html     = ''
 $ServicesToCheck = @('NTDS','NETLOGON','W32Time','DNS','KDC')
@@ -297,9 +297,9 @@ try {
     $CriticalFindings.Add("Section 4  -  AD Services error: $($_.Exception.Message)")
 }
 
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 # SECTION 5  -  REPLICATION HEALTH
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 Write-Progress2 "Section 5: Replication Health..."
 $Sec4Html = ''
 try {
@@ -345,9 +345,9 @@ try {
     $CriticalFindings.Add("Section 5  -  Replication check error: $($_.Exception.Message)")
 }
 
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 # SECTION 6  -  SYSVOL & NETLOGON SHARE
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 Write-Progress2 "Section 6: SYSVOL & Netlogon Share..."
 $Sec5Html = ''
 try {
@@ -385,9 +385,9 @@ try {
     $CriticalFindings.Add("Section 6  -  SYSVOL/NETLOGON error: $($_.Exception.Message)")
 }
 
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 # SECTION 7  -  DNS HEALTH
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 Write-Progress2 "Section 7: DNS Health..."
 $Sec6Html = ''
 try {
@@ -456,9 +456,9 @@ $forwardersHtml
     $CriticalFindings.Add("Section 7  -  DNS Health error: $($_.Exception.Message)")
 }
 
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 # SECTION 8  -  FSMO ROLE HOLDERS
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 Write-Progress2 "Section 8: FSMO Role Holders..."
 $Sec7Html = ''
 try {
@@ -500,9 +500,9 @@ try {
     $CriticalFindings.Add("Section 8  -  FSMO check error: $($_.Exception.Message)")
 }
 
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 # SECTION 9  -  AD TRUST RELATIONSHIPS
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 Write-Progress2 "Section 9: AD Trust Relationships..."
 $Sec8Html = ''
 try {
@@ -531,9 +531,9 @@ try {
     $Sec8Html = "<p class='error'>Error checking AD Trusts: $(HtmlEncode $_.Exception.Message)</p>"
 }
 
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 # SECTION 10  -  AD TOMBSTONE & RECYCLE BIN
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 Write-Progress2 "Section 10: Tombstone Lifetime & Recycle Bin..."
 $Sec9Html = ''
 try {
@@ -565,9 +565,9 @@ try {
     $Sec9Html = "<p class='error'>Error checking Tombstone/Recycle Bin: $(HtmlEncode $_.Exception.Message)</p>"
 }
 
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 # SECTION 11  -  PRIVILEGED ACCOUNT AUDIT
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 Write-Progress2 "Section 11: Privileged Account Audit..."
 $Sec10Html = ''
 try {
@@ -608,9 +608,9 @@ try {
     $Sec10Html = "<p class='error'>Error in Privileged Account Audit: $(HtmlEncode $_.Exception.Message)</p>"
 }
 
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 # SECTION 12  -  PASSWORD POLICY
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 Write-Progress2 "Section 12: Default Domain Password Policy..."
 $Sec11Html = ''
 try {
@@ -635,16 +635,16 @@ try {
     $Sec11Html = "<p class='error'>Error retrieving Password Policy: $(HtmlEncode $_.Exception.Message)</p>"
 }
 
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 # SECTION 13  -  STALE OBJECTS
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 Write-Progress2 "Section 13: Stale Objects..."
 $Sec12Html = ''
 try {
     if (-not $ADModuleAvailable) { throw "ActiveDirectory module not available." }
     $staleDate = (Get-Date).AddDays(-$StaleThresholdDays)
 
-    # ── Stale Users – fetch full details for the expandable table ─────────
+    # -- Stale Users - fetch full details for the expandable table ---------
     $staleUserList = $null
     try {
         $staleUserList = @(Get-ADUser -Filter {
@@ -654,7 +654,7 @@ try {
           -ErrorAction SilentlyContinue | Sort-Object LastLogonDate)
     } catch { $staleUserList = $null }
 
-    # ── Stale Computers – fetch full details ──────────────────────────────
+    # -- Stale Computers - fetch full details ------------------------------
     $staleCompList = $null
     try {
         $staleCompList = @(Get-ADComputer -Filter {
@@ -667,7 +667,7 @@ try {
     $staleUsers = if ($null -ne $staleUserList) { $staleUserList.Count } else { -1 }
     $staleComps = if ($null -ne $staleCompList) { $staleCompList.Count } else { -1 }
 
-    # ── Helper: extract OU path from DistinguishedName ────────────────────
+    # -- Helper: extract OU path from DistinguishedName --------------------
     function Get-OUFromDN {
         param([string]$dn)
         if ([string]::IsNullOrEmpty($dn)) { return '' }
@@ -676,7 +676,7 @@ try {
         if ($parts.Count -gt 1) { return $parts[1] } else { return $dn }
     }
 
-    # ── Build stale-user detail table ─────────────────────────────────────
+    # -- Build stale-user detail table -------------------------------------
     $uDetailHtml = ''
     if ($staleUsers -gt 0) {
         $uRows = foreach ($u in $staleUserList) {
@@ -706,7 +706,7 @@ try {
 "@
     }
 
-    # ── Build stale-computer detail table ─────────────────────────────────
+    # -- Build stale-computer detail table ---------------------------------
     $cDetailHtml = ''
     if ($staleComps -gt 0) {
         $cRows = foreach ($c in $staleCompList) {
@@ -734,7 +734,7 @@ try {
 "@
     }
 
-    # ── Badges and expandable panels ──────────────────────────────────────
+    # -- Badges and expandable panels --------------------------------------
     $uBadgeText = if ($staleUsers -ge 0) { "$staleUsers stale users" } else { 'Error' }
     $uBadge     = if ($staleUsers -gt 0) { StatusBadge $uBadgeText 'yellow' }
                   elseif ($staleUsers -eq 0) { StatusBadge $uBadgeText 'green' }
@@ -781,19 +781,19 @@ try {
     $Sec12Html = "<p class='error'>Error checking Stale Objects: $(HtmlEncode $_.Exception.Message)</p>"
 }
 
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 # SECTION 14  -  DIRECTORY SERVICE EVENT LOG
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 Write-Progress2 "Section 14: System Event Log..."
 $Sec13Html = ''
 
 # ---------------------------------------------------------------------------
-# Advisory map: known Event IDs → Impact level + resolution suggestion.
+# Advisory map: known Event IDs -> Impact level + resolution suggestion.
 # Covers Directory Service, System (Service Control Manager, Disk, BugCheck,
 # Networking, NTP) and Application (VSS, WMI) event sources.
 # ---------------------------------------------------------------------------
 $EventAdvisory = @{
-    # ── Active Directory / Directory Service ──────────────────────────────
+    # -- Active Directory / Directory Service ------------------------------
     1000 = @{ Impact = 'Critical'; Suggestion = 'AD DS stopped unexpectedly. Immediate investigation required - this may indicate AD has shut down.' }
     1084 = @{ Impact = 'Critical'; Suggestion = 'AD replication failure. Check network connectivity and replication topology (repadmin /replsummary).' }
     1308 = @{ Impact = 'Warning';  Suggestion = 'AD replication inconsistency detected. Monitor replication status with repadmin /showrepl.' }
@@ -804,7 +804,7 @@ $EventAdvisory = @{
     5807 = @{ Impact = 'Warning';  Suggestion = 'Netlogon: no DC found for a site. Check site links, subnets, and DC availability.' }
     5808 = @{ Impact = 'Warning';  Suggestion = 'Netlogon DC-locator warning. Review Active Directory Sites & Services subnet configuration.' }
 
-    # ── Service Control Manager (System log) ──────────────────────────────
+    # -- Service Control Manager (System log) ------------------------------
     7000 = @{ Impact = 'Error';    Suggestion = 'Service failed to start. Check the service account, dependencies, and the Application log for detail.' }
     7001 = @{ Impact = 'Error';    Suggestion = 'Service dependency failed. Verify all prerequisite services are running.' }
     7009 = @{ Impact = 'Warning';  Suggestion = 'Service start timed out. Check system performance; consider increasing the service timeout in the registry.' }
@@ -821,7 +821,7 @@ $EventAdvisory = @{
     7040 = @{ Impact = 'Warning';  Suggestion = 'Service start type changed. Confirm this was intentional; revert if unauthorized.' }
     7045 = @{ Impact = 'Warning';  Suggestion = 'A new service was installed. Verify this is an authorized installation; investigate if unexpected.' }
 
-    # ── Disk / Storage (System log) ───────────────────────────────────────
+    # -- Disk / Storage (System log) ---------------------------------------
     7  = @{ Impact = 'Critical'; Suggestion = 'Disk I/O error. Run chkdsk /f /r on the affected volume and check hardware health (SMART data).' }
     11 = @{ Impact = 'Critical'; Suggestion = 'Disk controller error. Check cabling, disk health (SMART), and consider replacing the disk if errors persist.' }
     15 = @{ Impact = 'Error';    Suggestion = 'Disk not ready. Ensure the disk is properly connected and not failing.' }
@@ -829,30 +829,30 @@ $EventAdvisory = @{
     55 = @{ Impact = 'Critical'; Suggestion = 'NTFS filesystem corruption detected. Run chkdsk /f immediately and restore from backup if needed.' }
     57 = @{ Impact = 'Critical'; Suggestion = 'NTFS failed to flush data. Potential data loss risk - run chkdsk and inspect disk hardware immediately.' }
 
-    # ── System / BugCheck ─────────────────────────────────────────────────
+    # -- System / BugCheck -------------------------------------------------
     1001 = @{ Impact = 'Critical'; Suggestion = 'System crashed (BugCheck/BSOD). Analyze the dump file with WinDbg (!analyze -v). Check drivers and hardware.' }
     6008 = @{ Impact = 'Critical'; Suggestion = 'Unexpected shutdown. Verify power supply, check for BugCheck events and hardware errors in event logs.' }
     6009 = @{ Impact = 'Warning';  Suggestion = 'System version logged at boot. Normal if after maintenance; investigate if unexpected reboot.' }
     41   = @{ Impact = 'Critical'; Suggestion = 'System rebooted without clean shutdown. Check for power issues, BugCheck events, or hardware failures.' }
 
-    # ── Network / DNS ─────────────────────────────────────────────────────
+    # -- Network / DNS -----------------------------------------------------
     4015 = @{ Impact = 'Error';    Suggestion = 'DNS server critical error. Restart DNS Server service; check zone integrity with dnscmd /zoneprint.' }
     4016 = @{ Impact = 'Warning';  Suggestion = 'DNS internal processing error. Review DNS debug log and check zone configuration.' }
     5719 = @{ Impact = 'Critical'; Suggestion = 'No DC available to authenticate. Check DNS, network connectivity, and that the NetLogon service is running.' }
     5783 = @{ Impact = 'Critical'; Suggestion = 'Netlogon could not locate a DC. Verify DNS SRV records: dcdiag /test:dns /v.' }
 
-    # ── Time Synchronization ──────────────────────────────────────────────
+    # -- Time Synchronization ----------------------------------------------
     36 = @{ Impact = 'Warning';  Suggestion = 'W32tm time sync error. Run: w32tm /config /syncfromflags:domhier /update; w32tm /resync /force.' }
     37 = @{ Impact = 'Warning';  Suggestion = 'Time-provider NtpClient: cannot reach time source. Check firewall rules for UDP 123 and NTP source reachability.' }
     38 = @{ Impact = 'Warning';  Suggestion = 'NTP time provider did not receive a timely response. Verify NTP server availability and UDP 123 connectivity.' }
 
-    # ── VSS / Volume Shadow Copy ───────────────────────────────────────────
+    # -- VSS / Volume Shadow Copy -------------------------------------------
     8193 = @{ Impact = 'Error';    Suggestion = 'VSS call failure. Check VSS writers (vssadmin list writers); restart VSS and affected writer services.' }
     8194 = @{ Impact = 'Error';    Suggestion = 'VSS error accessing a provider. Run: vssadmin list providers; re-register VSS if needed.' }
     12293= @{ Impact = 'Error';    Suggestion = 'VSS volume error. Ensure sufficient free space on the shadow copy storage volume.' }
     12298= @{ Impact = 'Warning';  Suggestion = 'VSS pre-create snapshot failure. Verify disk space and that no VSS writer is in a failed state.' }
 
-    # ── WMI / Application ─────────────────────────────────────────────────
+    # -- WMI / Application -------------------------------------------------
     10 = @{ Impact = 'Warning';  Suggestion = 'WMI event filter activation error. Run: winmgmt /resetrepository or rebuild the WMI repository if persisting.' }
 }
 
@@ -900,7 +900,7 @@ try {
                 $safeLog  = HtmlEncode $ev.LogName
                 $safeDC   = HtmlEncode $dcName
 
-                # Impact & Suggestion – advisory map first, fall back to log-aware defaults
+                # Impact & Suggestion - advisory map first, fall back to log-aware defaults
                 $advisory   = $EventAdvisory[[int]$ev.Id]
                 $impact     = if ($advisory) { $advisory.Impact } else { $level }
                 $suggestion = if ($advisory) {
@@ -965,9 +965,9 @@ try {
     $CriticalFindings.Add("Section 14  -  Event Log error: $($_.Exception.Message)")
 }
 
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 # SECTION 15  -  WINDOWS UPDATE STATUS
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 Write-Progress2 "Section 15: Windows Update Status..."
 $Sec14Html = ''
 try {
@@ -1020,7 +1020,7 @@ try {
             } -ErrorAction SilentlyContinue
 
             if ($null -eq $pendingResult) {
-                # WinRM unavailable — attempt a direct local COM fallback.
+                # WinRM unavailable - attempt a direct local COM fallback.
                 # This succeeds when the script is running on the same DC being checked.
                 $localFallbackDone = $false
                 try {
@@ -1118,9 +1118,9 @@ try {
     $CriticalFindings.Add("Section 15  -  Windows Update check error: $($_.Exception.Message)")
 }
 
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 # SUMMARY BAR COUNTS
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 $domainName = ''
 $forestLevel = ''
 try {
@@ -1137,9 +1137,9 @@ $HealthyDCs = [Math]::Max(0, [int]$DCCount - $CritDCs)
 
 Write-Progress2 "Building HTML report..."
 
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 # COMPANY LOGO HTML
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 $LogoHtml = ''
 if (-not [string]::IsNullOrWhiteSpace($CompanyLogoURL)) {
     $logoImg = "<img src='$(HtmlEncode $CompanyLogoURL)' alt='Company Logo' style='max-height:60px;vertical-align:middle;'>"
@@ -1151,9 +1151,9 @@ if (-not [string]::IsNullOrWhiteSpace($CompanyLogoURL)) {
     $LogoHtml = "<div class='logo-wrap'>$LogoHtml</div>"
 }
 
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 # HELPER: Build collapsible section
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 function BuildSection {
     param(
         [int]$num,
@@ -1189,9 +1189,9 @@ $AuthorLink = if (-not [string]::IsNullOrWhiteSpace($CompanyWebsite)) {
     HtmlEncode $AuthorName
 }
 
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 # BUILD FULL HTML
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 $HtmlReport = @"
 <!DOCTYPE html>
 <html lang="en">
@@ -1200,7 +1200,7 @@ $HtmlReport = @"
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>AD Health Check Report  -  $(HtmlEncode $domainName)</title>
 <style>
-/* ── CSS VARIABLES ── */
+/* -- CSS VARIABLES -- */
 :root {
   --bg:       #0d1117;
   --card:     #161b22;
@@ -1230,7 +1230,7 @@ $HtmlReport = @"
   --pre-bg:   #f6f8fa;
 }
 
-/* ── RESET & BASE ── */
+/* -- RESET & BASE -- */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -1250,7 +1250,7 @@ code { font-family: 'SFMono-Regular', Consolas, monospace; font-size: 12px;
        background: var(--th-bg); padding: 2px 6px; border-radius: 4px; }
 em { font-style: italic; }
 
-/* ── LAYOUT ── */
+/* -- LAYOUT -- */
 .page-wrap  { max-width: 1400px; margin: 0 auto; padding: 0 16px 40px; }
 .header     { background: var(--head-bg); border-bottom: 1px solid var(--border);
               padding: 16px 24px; display: flex; align-items: center;
@@ -1260,13 +1260,13 @@ em { font-style: italic; }
 .header-title h1 { font-size: 1.4rem; color: var(--text); }
 .header-title p  { font-size: .8rem; color: var(--muted); margin:0; }
 
-/* ── THEME TOGGLE ── */
+/* -- THEME TOGGLE -- */
 .theme-toggle { cursor: pointer; background: var(--card); border: 1px solid var(--border);
                 color: var(--text); border-radius: 20px; padding: 6px 14px;
                 font-size: 12px; display: flex; align-items: center; gap: 6px; }
 .theme-toggle:hover { background: var(--th-bg); }
 
-/* ── SUMMARY BAR ── */
+/* -- SUMMARY BAR -- */
 .summary-bar { display: flex; flex-wrap: wrap; gap: 12px;
                background: var(--card); border: 1px solid var(--border);
                border-radius: 8px; padding: 16px 20px; margin: 20px 0; }
@@ -1279,7 +1279,7 @@ em { font-style: italic; }
 .c-blue   { color: #58a6ff; }
 .c-muted  { color: var(--muted); }
 
-/* ── SECTION CARDS ── */
+/* -- SECTION CARDS -- */
 .section-card { background: var(--card); border: 1px solid var(--border);
                 border-radius: 8px; margin-bottom: 16px; overflow: hidden; }
 .section-summary { display: flex; align-items: center; gap: 10px; cursor: pointer;
@@ -1296,7 +1296,7 @@ details[open] > .section-summary .sec-arrow { transform: rotate(90deg); }
 .sec-title { font-weight: 600; font-size: .95rem; flex: 1; }
 .section-body { padding: 16px 18px; border-top: 1px solid var(--border); }
 
-/* ── TABLES ── */
+/* -- TABLES -- */
 .table-wrap { overflow-x: auto; border-radius: 6px; border: 1px solid var(--border); }
 table       { width: 100%; border-collapse: collapse; font-size: 13px; }
 thead tr    { background: var(--th-bg); position: sticky; top: 0; z-index: 1; }
@@ -1309,22 +1309,22 @@ tbody tr:hover { background: var(--th-bg); }
 .kv-table td { padding: 7px 12px; border-bottom: 1px solid var(--border); }
 .td-label   { font-weight: 600; white-space: nowrap; width: 220px; color: var(--muted); }
 
-/* ── EVENT ROW COLORS ── */
+/* -- EVENT ROW COLORS -- */
 .row-critical { background: rgba(218,54,51,.15) !important; }
 .row-error    { background: rgba(218,54,51,.08) !important; }
 .row-warning  { background: rgba(210,153,34,.12) !important; }
 
-/* ── BADGES ── */
+/* -- BADGES -- */
 .badge { display: inline-block; font-size: .7rem; font-weight: 600; padding: 2px 8px;
          border-radius: 20px; color: #fff; white-space: nowrap; }
 
-/* ── CODE BLOCK ── */
+/* -- CODE BLOCK -- */
 .code-block { background: var(--pre-bg); border: 1px solid var(--border); border-radius: 6px;
               padding: 12px; overflow-x: auto; font-size: 12px; font-family: 'SFMono-Regular',
               Consolas, monospace; white-space: pre; color: var(--text); line-height: 1.5; }
 .repl-fail  { color: #f85149; font-weight: 600; }
 
-/* ── EVENT LOG TABLE  -  constrain wide message/suggestion columns ── */
+/* -- EVENT LOG TABLE  -  constrain wide message/suggestion columns -- */
 .event-table td:nth-child(6),
 .event-table td:nth-child(8) {
   max-width: 280px;
@@ -1332,7 +1332,7 @@ tbody tr:hover { background: var(--th-bg); }
   white-space: normal;
 }
 
-/* ── STALE OBJECTS – expandable detail panels ── */
+/* -- STALE OBJECTS - expandable detail panels -- */
 .stale-details { display: block; }
 .stale-summary { list-style: none; cursor: pointer; display: inline-flex;
                  align-items: center; gap: 6px; user-select: none; }
@@ -1343,18 +1343,18 @@ tbody tr:hover { background: var(--th-bg); }
 .stale-detail-wrap { margin-top: 10px; }
 .stale-ou { font-size: .75rem; color: var(--muted); word-break: break-all; }
 
-/* ── MESSAGE CLASSES ── */
+/* -- MESSAGE CLASSES -- */
 .error { color: #f85149; padding: 8px 12px; background: rgba(248,81,73,.1);
          border-left: 3px solid #f85149; border-radius: 4px; }
 .warn  { color: #d29922; }
 .info  { color: var(--muted); }
 
-/* ── FOOTER ── */
+/* -- FOOTER -- */
 .footer { border-top: 1px solid var(--border); padding: 20px 0;
           margin-top: 24px; color: var(--muted); font-size: .8rem;
           display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
 
-/* ── RESPONSIVE ── */
+/* -- RESPONSIVE -- */
 @media (max-width: 768px) {
   .summary-bar { gap: 8px; }
   .stat-card   { flex: 1 1 100px; }
@@ -1365,7 +1365,7 @@ tbody tr:hover { background: var(--th-bg); }
 </head>
 <body data-theme="dark">
 
-<!-- ═══ HEADER ═══ -->
+<!-- === HEADER === -->
 <div class="header">
   <div class="header-left">
     $LogoHtml
@@ -1379,7 +1379,7 @@ tbody tr:hover { background: var(--th-bg); }
   </button>
 </div>
 
-<!-- ═══ SUMMARY BAR ═══ -->
+<!-- === SUMMARY BAR === -->
 <div class="page-wrap">
 <div class="summary-bar">
   <div class="stat-card">
@@ -1408,7 +1408,7 @@ tbody tr:hover { background: var(--th-bg); }
   </div>
 </div>
 
-<!-- ═══ 15 SECTIONS ═══ -->
+<!-- === 15 SECTIONS === -->
 $(BuildSection 1  'Server Details'                  $Sec0Html  ($Sec0Html  -match 'error')   $true)
 $(BuildSection 2  'Domain & Forest Info'            $Sec1Html  ($Sec1Html  -match 'error')   $true)
 $(BuildSection 3  'Domain Controller Inventory'     $Sec2Html  ($Sec2Html  -match 'error')   $true)
@@ -1425,7 +1425,7 @@ $(BuildSection 13 'Stale Objects'                   $Sec12Html ($Sec12Html -matc
 $(BuildSection 14 'System Event Log'               $Sec13Html ($Sec13Html -match 'error')   $false)
 $(BuildSection 15 'Windows Update Status'           $Sec14Html ($Sec14Html -match 'error')   $false)
 
-<!-- ═══ FOOTER ═══ -->
+<!-- === FOOTER === -->
 <div class="footer">
   <div>
     <strong>AD Health Check v$ScriptVersion</strong> &nbsp;|&nbsp;
@@ -1454,9 +1454,9 @@ function toggleTheme() {
 </html>
 "@
 
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 # WRITE REPORT FILE
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 try {
     [System.IO.File]::WriteAllText($ReportFile, $HtmlReport, [System.Text.Encoding]::UTF8)
     Write-Host ""
@@ -1465,9 +1465,9 @@ try {
     Write-Warning "Failed to write report: $_"
 }
 
-# ═══════════════════════════════════════════════════════════════════════════════
-# STATUS SUMMARY FILE  (plain-text companion — _HEALTHY.txt or _CRITICAL.txt)
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
+# STATUS SUMMARY FILE  (plain-text companion - _HEALTHY.txt or _CRITICAL.txt)
+# ===============================================================================
 $isCritical   = $CriticalFindings.Count -gt 0
 $statusSuffix = if ($isCritical) { '_CRITICAL' } else { '_HEALTHY' }
 $StatusFile   = Join-Path $ReportsDir ($ReportStamp + $statusSuffix + '.txt')

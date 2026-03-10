@@ -1,4 +1,4 @@
-﻿#Requires -Version 5.1
+#Requires -Version 5.1
 <#
 .SYNOPSIS
     Email alert companion for Server_HealthCheck.ps1
@@ -8,23 +8,23 @@
     Server_HealthCheck.ps1 and sends a formatted HTML email notification via SMTP.
 
     A built-in -TestEmail switch verifies SMTP connectivity end-to-end before you
-    rely on scheduled alerts — if the test email arrives in your inbox, the SMTP
+    rely on scheduled alerts - if the test email arrives in your inbox, the SMTP
     settings are correct and real alerts will work.
 
 .EXAMPLE
-    # ── Step 1: Verify SMTP settings (no status file required)
+    # -- Step 1: Verify SMTP settings (no status file required)
     .\Server_HealthCheck_EmailAlert.ps1 -TestEmail
 
-    # ── Step 2: Send real alerts (reads latest Server_Health_*_CRITICAL.txt)
+    # -- Step 2: Send real alerts (reads latest Server_Health_*_CRITICAL.txt)
     .\Server_HealthCheck_EmailAlert.ps1
 
-    # ── Optional: pass credentials at runtime (avoids hard-coded passwords)
+    # -- Optional: pass credentials at runtime (avoids hard-coded passwords)
     .\Server_HealthCheck_EmailAlert.ps1 -SmtpCredential (Get-Credential)
 
-    # ── Process a specific status file directly
+    # -- Process a specific status file directly
     .\Server_HealthCheck_EmailAlert.ps1 -StatusFile 'C:\Reports\Server_Health_20260309_CRITICAL.txt'
 
-    # ── Scan a custom reports folder
+    # -- Scan a custom reports folder
     .\Server_HealthCheck_EmailAlert.ps1 -ReportsFolder 'D:\InfraReports'
 
     By default only CRITICAL status files trigger an email.  Set
@@ -63,41 +63,41 @@ param(
     [System.Management.Automation.PSCredential]$SmtpCredential = $null
 )
 
-# ════════════════════════════════════════════════════════════════════════════════
-# CONFIGURATION — edit this section before first use
-# ════════════════════════════════════════════════════════════════════════════════
+# ================================================================================
+# CONFIGURATION - edit this section before first use
+# ================================================================================
 
-# ── SMTP Settings ──────────────────────────────────────────────────────────────
+# -- SMTP Settings --------------------------------------------------------------
 $SmtpServer  = 'smtp.yourdomain.com'       # SMTP relay hostname or IP
 $SmtpPort    = 587                         # 587 (STARTTLS) | 465 (SSL) | 25 (plain)
 $SmtpUseSsl  = $true                       # Enable TLS/SSL
 
-# ── SMTP Authentication ───────────────────────────────────────────────────────
+# -- SMTP Authentication -------------------------------------------------------
 # Preferred: pass -SmtpCredential (Get-Credential) on the command line.
 # The plain-text fallback below is for automated/unattended scenarios only.
 # SECURITY: Store secrets in Windows Credential Manager or a vault, not here.
 $SmtpUsername = ''                         # Used only when -SmtpCredential is NOT supplied
-$SmtpPassword = ''                         # Plain-text fallback — avoid if possible
+$SmtpPassword = ''                         # Plain-text fallback - avoid if possible
 
-# ── Email Addresses ────────────────────────────────────────────────────────────
+# -- Email Addresses ------------------------------------------------------------
 $FromAddress = 'serverhealth@yourdomain.com'   # Sender address
 $ToAddresses = @('admin@yourdomain.com')        # One or more recipient addresses
 $CcAddresses = @()                              # CC list (optional)
 
-# ── Alert Behaviour ────────────────────────────────────────────────────────────
+# -- Alert Behaviour ------------------------------------------------------------
 $AlertOnCritical = $true    # Send email when a CRITICAL status file is found
 $AlertOnHealthy  = $false   # Also send email when status is HEALTHY (optional)
 
 # How many status files to process per run (0 = all, 1 = latest only)
 $MaxFilesToProcess = 1
 
-# ════════════════════════════════════════════════════════════════════════════════
+# ================================================================================
 
 $ScriptVersion = '1.0.0'
 $ScriptDir     = Split-Path -Parent $MyInvocation.MyCommand.Definition
 if ([string]::IsNullOrEmpty($ScriptDir)) { $ScriptDir = $PWD.Path }
 
-# ── HELPER FUNCTIONS ──────────────────────────────────────────────────────────
+# -- HELPER FUNCTIONS ----------------------------------------------------------
 function Write-Log {
     param([string]$Msg, [string]$Color = 'Cyan')
     Write-Host "  [$(Get-Date -Format 'HH:mm:ss')] $Msg" -ForegroundColor $Color
@@ -249,16 +249,16 @@ function Send-StatusEmail {
     }
 }
 
-# ── BANNER ────────────────────────────────────────────────────────────────────
+# -- BANNER --------------------------------------------------------------------
 Write-Host ""
 Write-Host "+==============================================================+" -ForegroundColor DarkYellow
 Write-Host "|   Server Health Check - Email Alert  v$ScriptVersion               |" -ForegroundColor DarkYellow
 Write-Host "+==============================================================+" -ForegroundColor DarkYellow
 Write-Host ""
 
-# ════════════════════════════════════════════════════════════════════════════════
+# ================================================================================
 # -TestEmail MODE
-# ════════════════════════════════════════════════════════════════════════════════
+# ================================================================================
 if ($TestEmail) {
     Write-Log "TEST EMAIL MODE - verifying SMTP connectivity..." 'Cyan'
     Write-Log "  SMTP Server : $SmtpServer : $SmtpPort  (SSL: $SmtpUseSsl)"
@@ -317,9 +317,9 @@ if ($TestEmail) {
     exit 0
 }
 
-# ════════════════════════════════════════════════════════════════════════════════
+# ================================================================================
 # SINGLE-FILE MODE
-# ════════════════════════════════════════════════════════════════════════════════
+# ================================================================================
 if (-not [string]::IsNullOrWhiteSpace($StatusFile)) {
     if (-not (Test-Path $StatusFile)) {
         Write-Warning "Status file not found: $StatusFile"
@@ -346,9 +346,9 @@ if (-not [string]::IsNullOrWhiteSpace($StatusFile)) {
     exit 0
 }
 
-# ════════════════════════════════════════════════════════════════════════════════
+# ================================================================================
 # FOLDER SCAN MODE (default)
-# ════════════════════════════════════════════════════════════════════════════════
+# ================================================================================
 if ([string]::IsNullOrWhiteSpace($ReportsFolder)) {
     $ReportsFolder = Join-Path $ScriptDir 'Reports'
 }

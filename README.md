@@ -6,60 +6,68 @@ A collection of PowerShell scripts that perform comprehensive health checks for 
 
 ```
 Windows-Server-Reports-scripts/
-│
-├── AD_HealthCheck/
-│   ├── Reports/                          # Auto-created; stores generated .html and .txt reports
-│   ├── AD_HealthCheck.ps1                # Main health-check script
-│   ├── AD_HealthCheck_EmailAlert.ps1     # Email alert companion
-│   └── Run_AD_HealthCheck.ps1            # Launcher (double-click or Task Scheduler)
-│
-├── ADCS_HealthCheck/
-│   ├── Reports/
-│   ├── ADCS_HealthCheck.ps1
-│   ├── ADCS_HealthCheck_EmailAlert.ps1
-│   └── Run_ADCS_HealthCheck.ps1
-│
-├── DHCP_DNS_HealthCheck/
-│   ├── Reports/
-│   ├── DHCP_DNS_HealthCheck.ps1
-│   ├── DHCP_DNS_HealthCheck_EmailAlert.ps1
-│   └── Run_DHCP_DNS_HealthCheck.ps1
-│
-├── ERP_HealthCheck/
-│   ├── Reports/
-│   ├── ERP_HealthCheck.ps1
-│   ├── ERP_HealthCheck_EmailAlert.ps1
-│   └── Run_ERP_HealthCheck.ps1
-│
-├── Server_HealthCheck/
-│   ├── Reports/
-│   ├── Server_HealthCheck.ps1
-│   ├── Server_HealthCheck_EmailAlert.ps1
-│   └── Run_Server_HealthCheck.ps1
-│
-├── WDS_HealthCheck/
-│   ├── Reports/
-│   ├── WDS_HealthCheck.ps1
-│   ├── WDS_HealthCheck_EmailAlert.ps1
-│   └── Run_WDS_HealthCheck.ps1
-│
-└── WSUS_HealthCheck/
-    ├── Reports/
-    ├── WSUS_HealthCheck.ps1
-    ├── WSUS_HealthCheck_EmailAlert.ps1
-    └── Run_WSUS_HealthCheck.ps1
+|
+|-- Run_AD_HealthCheck.ps1            # Root-level launcher (simplest way to run)
+|-- Run_ADCS_HealthCheck.ps1
+|-- Run_DHCP_DNS_HealthCheck.ps1
+|-- Run_ERP_HealthCheck.ps1
+|-- Run_Server_HealthCheck.ps1
+|-- Run_WDS_HealthCheck.ps1
+|-- Run_WSUS_HealthCheck.ps1
+|
+|-- AD_HealthCheck/
+|   |-- Reports/                      # Auto-created; stores generated .html and .txt reports
+|   |-- AD_HealthCheck.ps1            # Main health-check script
+|   |-- AD_HealthCheck_EmailAlert.ps1 # Email alert companion
+|   `-- Run_AD_HealthCheck.ps1        # Subfolder launcher
+|
+|-- ADCS_HealthCheck/
+|   |-- Reports/
+|   |-- ADCS_HealthCheck.ps1
+|   |-- ADCS_HealthCheck_EmailAlert.ps1
+|   `-- Run_ADCS_HealthCheck.ps1
+|
+|-- DHCP_DNS_HealthCheck/
+|   |-- Reports/
+|   |-- DHCP_DNS_HealthCheck.ps1
+|   |-- DHCP_DNS_HealthCheck_EmailAlert.ps1
+|   `-- Run_DHCP_DNS_HealthCheck.ps1
+|
+|-- ERP_HealthCheck/
+|   |-- Reports/
+|   |-- ERP_HealthCheck.ps1
+|   |-- ERP_HealthCheck_EmailAlert.ps1
+|   `-- Run_ERP_HealthCheck.ps1
+|
+|-- Server_HealthCheck/
+|   |-- Reports/
+|   |-- Server_HealthCheck.ps1
+|   |-- Server_HealthCheck_EmailAlert.ps1
+|   `-- Run_Server_HealthCheck.ps1
+|
+|-- WDS_HealthCheck/
+|   |-- Reports/
+|   |-- WDS_HealthCheck.ps1
+|   |-- WDS_HealthCheck_EmailAlert.ps1
+|   `-- Run_WDS_HealthCheck.ps1
+|
+`-- WSUS_HealthCheck/
+    |-- Reports/
+    |-- WSUS_HealthCheck.ps1
+    |-- WSUS_HealthCheck_EmailAlert.ps1
+    `-- Run_WSUS_HealthCheck.ps1
 ```
 
 > **Note:** The `Reports/` folder inside each subfolder is automatically created on the first run of the health-check script. You do not need to create it manually.
 
 ## Features
 
-- **Multiple Role Coverage** — AD, ADCS, DHCP/DNS, ERP, Server baseline, WDS, and WSUS
-- **Dark/Light Mode Toggle** — switch themes with one click in any report
+- **Multiple Role Coverage** - AD, ADCS, DHCP/DNS, ERP, Server baseline, WDS, and WSUS
+- **Dark/Light Mode Toggle** - switch themes with one click in any report
 - **Email Alerts** for critical findings (configurable SMTP per script)
 - **Event Log Analysis** with human-readable suggestions and impact ratings
-- **Reports Folder** — all HTML reports saved to a dedicated `Reports\` subfolder inside each script directory
-- **Zero External Dependencies** — fully self-contained HTML output
+- **Reports Folder** - all HTML reports saved to a dedicated `Reports\` subfolder inside each script directory
+- **Zero External Dependencies** - fully self-contained HTML output
 
 ## Prerequisites
 
@@ -74,17 +82,25 @@ Windows-Server-Reports-scripts/
 
 ```powershell
 # 1. Open PowerShell as Administrator
-# 2. Navigate to the desired script subfolder, e.g.:
+
+# OPTION 1 (Easiest) - Run from the root of the repository:
+cd "C:\Path\To\Windows-Server-Reports-scripts"
+.\Run_AD_HealthCheck.ps1          # Active Directory
+.\Run_ADCS_HealthCheck.ps1        # Certificate Services (ADCS/PKI)
+.\Run_DHCP_DNS_HealthCheck.ps1    # DHCP and DNS
+.\Run_ERP_HealthCheck.ps1         # ERP Server
+.\Run_Server_HealthCheck.ps1      # General Windows Server
+.\Run_WDS_HealthCheck.ps1         # Windows Deployment Services
+.\Run_WSUS_HealthCheck.ps1        # Windows Server Update Services
+
+# OPTION 2 - Navigate to the script subfolder first:
 cd "C:\Path\To\Windows-Server-Reports-scripts\AD_HealthCheck"
+.\AD_HealthCheck.ps1              # run directly
+.\Run_AD_HealthCheck.ps1          # or use subfolder launcher
 
-# Option A – run directly
-.\AD_HealthCheck.ps1
-
-# Option B – use the launcher (works from Task Scheduler or Explorer double-click)
-.\Run_AD_HealthCheck.ps1
-
-# 3. Open the report
-# Reports are saved to: .\Reports\AD_Health_YYYYMMDD_HHmmss.html
+# 2. Open the report
+# Reports are saved inside the script's subfolder:
+# AD_HealthCheck\Reports\AD_Health_YYYYMMDD_HHmmss.html
 ```
 
 ## Configuration Variables

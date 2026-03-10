@@ -1,4 +1,4 @@
-﻿#Requires -Version 5.1
+#Requires -Version 5.1
 <#
 .SYNOPSIS
     Email alert companion for DHCP_DNS_HealthCheck.ps1
@@ -54,9 +54,9 @@ param(
     [System.Management.Automation.PSCredential]$SmtpCredential = $null
 )
 
-# ════════════════════════════════════════════════════════════════════════════════
+# ================================================================================
 # CONFIGURATION
-# ════════════════════════════════════════════════════════════════════════════════
+# ================================================================================
 
 $SmtpServer  = 'smtp.yourdomain.com'
 $SmtpPort    = 587
@@ -73,13 +73,13 @@ $AlertOnCritical   = $true
 $AlertOnHealthy    = $false
 $MaxFilesToProcess = 1
 
-# ════════════════════════════════════════════════════════════════════════════════
+# ================================================================================
 
 $ScriptVersion = '1.0.0'
 $ScriptDir     = Split-Path -Parent $MyInvocation.MyCommand.Definition
 if ([string]::IsNullOrEmpty($ScriptDir)) { $ScriptDir = $PWD.Path }
 
-# ── HELPER FUNCTIONS ──────────────────────────────────────────────────────────
+# -- HELPER FUNCTIONS ----------------------------------------------------------
 function Write-Log {
     param([string]$Msg, [string]$Color = 'Cyan')
     Write-Host "  [$(Get-Date -Format 'HH:mm:ss')] $Msg" -ForegroundColor $Color
@@ -202,16 +202,16 @@ function Send-StatusEmail {
     }
 }
 
-# ── BANNER ────────────────────────────────────────────────────────────────────
+# -- BANNER --------------------------------------------------------------------
 Write-Host ""
 Write-Host "+==============================================================+" -ForegroundColor DarkMagenta
 Write-Host "|   DHCP + DNS Health Check - Email Alert  v$ScriptVersion          |" -ForegroundColor DarkMagenta
 Write-Host "+==============================================================+" -ForegroundColor DarkMagenta
 Write-Host ""
 
-# ════════════════════════════════════════════════════════════════════════════════
+# ================================================================================
 # -TestEmail MODE
-# ════════════════════════════════════════════════════════════════════════════════
+# ================================================================================
 if ($TestEmail) {
     Write-Log "TEST EMAIL MODE - verifying SMTP connectivity..."
     Write-Log "  SMTP Server : $SmtpServer : $SmtpPort  (SSL: $SmtpUseSsl)"
@@ -269,9 +269,9 @@ if ($TestEmail) {
     exit 0
 }
 
-# ════════════════════════════════════════════════════════════════════════════════
+# ================================================================================
 # SINGLE-FILE MODE
-# ════════════════════════════════════════════════════════════════════════════════
+# ================================================================================
 if (-not [string]::IsNullOrWhiteSpace($StatusFile)) {
     if (-not (Test-Path $StatusFile)) {
         Write-Warning "Status file not found: $StatusFile"
@@ -297,9 +297,9 @@ if (-not [string]::IsNullOrWhiteSpace($StatusFile)) {
     exit 0
 }
 
-# ════════════════════════════════════════════════════════════════════════════════
+# ================================================================================
 # FOLDER SCAN MODE (default)
-# ════════════════════════════════════════════════════════════════════════════════
+# ================================================================================
 if ([string]::IsNullOrWhiteSpace($ReportsFolder)) {
     $ReportsFolder = Join-Path $ScriptDir 'Reports'
 }

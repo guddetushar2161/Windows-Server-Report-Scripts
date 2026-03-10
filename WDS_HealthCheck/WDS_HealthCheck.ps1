@@ -1,4 +1,4 @@
-﻿#Requires -Version 5.1
+#Requires -Version 5.1
 <#
 .SYNOPSIS
     Windows Deployment Services (WDS) Server Health Check Script
@@ -40,7 +40,7 @@
     Output     : WDS_Health_<hostname>_<date>.html  (same directory as script)
 #>
 
-# ── CONFIGURATION ─────────────────────────────────────────────────────────────
+# -- CONFIGURATION -------------------------------------------------------------
 $CompanyLogoURL      = ''
 $CompanyWebsite      = 'https://tushargudde.tech'
 $AuthorName          = 'Tushar Gudde'
@@ -53,7 +53,7 @@ $ImageAgeDaysWarn    = 180         # flag boot images older than this many days
 $PendingDeviceAlert  = $true       # show red tile when pending devices > 0
 
 $EnableStatusFile    = $true       # write a plain-text .status companion file
-# ──────────────────────────────────────────────────────────────────────────────
+# ------------------------------------------------------------------------------
 
 $ScriptVersion  = '1.0.0'
 $ScriptStart    = Get-Date
@@ -84,7 +84,7 @@ Write-Host "  Started : $ReportDate" -ForegroundColor Gray
 Write-Host "================================================================" -ForegroundColor DarkCyan
 Write-Host ""
 
-# ── COLOUR HELPERS ────────────────────────────────────────────────────────────
+# -- COLOUR HELPERS ------------------------------------------------------------
 function Get-StatusBadge {
     param([string]$text, [string]$colour)
     $bg = switch ($colour) {
@@ -109,7 +109,7 @@ function Get-ArchBadge {
     return "<span style='background:$colour;color:#fff;padding:2px 7px;border-radius:4px;font-size:0.72rem;font-weight:700;'>$arch</span>"
 }
 
-# ── HTML HEAD & THEME ─────────────────────────────────────────────────────────
+# -- HTML HEAD & THEME ---------------------------------------------------------
 $HtmlHead = @"
 <!DOCTYPE html>
 <html lang="en">
@@ -203,7 +203,7 @@ $HtmlHead = @"
 <div class="wrap">
 "@
 
-# ── HTML HEADER ───────────────────────────────────────────────────────────────
+# -- HTML HEADER ---------------------------------------------------------------
 $LogoHtml = ''
 if ($CompanyLogoURL) {
     $LogoHtml = "<a href='$CompanyWebsite' target='_blank'><img class='logo' src='$CompanyLogoURL' alt='Logo'/></a>"
@@ -219,9 +219,9 @@ $HtmlHeader = @"
 </div>
 "@
 
-# ══════════════════════════════════════════════════════════════════════════════
+# ==============================================================================
 #  PRE-CHECK: Is WDS Role installed?
-# ══════════════════════════════════════════════════════════════════════════════
+# ==============================================================================
 Write-Host "  [Pre ] Checking WDS role installation..." -ForegroundColor Gray
 
 $WdsRoleInstalled = $false
@@ -262,9 +262,9 @@ try {
 "@
 }
 
-# ══════════════════════════════════════════════════════════════════════════════
+# ==============================================================================
 #  SECTION 0 - Server Details
-# ══════════════════════════════════════════════════════════════════════════════
+# ==============================================================================
 Write-Host "  [0/16] Server Details..." -ForegroundColor Gray
 $Sec0Html = ''
 try {
@@ -307,9 +307,9 @@ try {
     $Sec0Html = "<div class='info-box'>Error retrieving Server Details: $($_.Exception.Message)</div>"
 }
 
-# ══════════════════════════════════════════════════════════════════════════════
+# ==============================================================================
 #  SECTION 1 - WDS Service Status
-# ══════════════════════════════════════════════════════════════════════════════
+# ==============================================================================
 Write-Host "  [1/15] WDS Service Status..." -ForegroundColor Gray
 $Sec1Html = ''
 try {
@@ -352,9 +352,9 @@ try {
     $Sec1Html = "<div class='info-box'>Error retrieving WDS service status: $($_.Exception.Message)</div>"
 }
 
-# ══════════════════════════════════════════════════════════════════════════════
+# ==============================================================================
 #  SECTION 2 - WDS Configuration
-# ══════════════════════════════════════════════════════════════════════════════
+# ==============================================================================
 Write-Host "  [2/15] WDS Configuration..." -ForegroundColor Gray
 $Sec2Html = ''
 try {
@@ -425,9 +425,9 @@ try {
     $Sec2Html = "<div class='info-box'>Error retrieving WDS configuration: $($_.Exception.Message)</div>"
 }
 
-# ══════════════════════════════════════════════════════════════════════════════
+# ==============================================================================
 #  SECTION 3 - PXE & TFTP Health
-# ══════════════════════════════════════════════════════════════════════════════
+# ==============================================================================
 Write-Host "  [3/15] PXE and TFTP Health..." -ForegroundColor Gray
 $Sec3Html = ''
 try {
@@ -463,9 +463,9 @@ try {
     $Sec3Html = "<div class='info-box'>Error checking PXE/TFTP: $($_.Exception.Message)</div>"
 }
 
-# ══════════════════════════════════════════════════════════════════════════════
+# ==============================================================================
 #  SECTION 4 - Boot Images
-# ══════════════════════════════════════════════════════════════════════════════
+# ==============================================================================
 Write-Host "  [4/15] Boot Images..." -ForegroundColor Gray
 $Sec4Html = ''
 try {
@@ -531,9 +531,9 @@ try {
     $Sec4Html = "<div class='info-box'>Error retrieving boot images: $($_.Exception.Message)</div>"
 }
 
-# ══════════════════════════════════════════════════════════════════════════════
+# ==============================================================================
 #  SECTION 5 - Install Images
-# ══════════════════════════════════════════════════════════════════════════════
+# ==============================================================================
 Write-Host "  [5/15] Install Images..." -ForegroundColor Gray
 $Sec5Html = ''
 try {
@@ -573,9 +573,9 @@ try {
     $Sec5Html = "<div class='info-box'>Error retrieving install images: $($_.Exception.Message)</div>"
 }
 
-# ══════════════════════════════════════════════════════════════════════════════
+# ==============================================================================
 #  SECTION 6 - Multicast Sessions
-# ══════════════════════════════════════════════════════════════════════════════
+# ==============================================================================
 Write-Host "  [6/15] Multicast Sessions..." -ForegroundColor Gray
 $Sec6Html = ''
 try {
@@ -611,9 +611,9 @@ try {
     $Sec6Html = "<div class='info-box'>Error retrieving multicast sessions: $($_.Exception.Message)</div>"
 }
 
-# ══════════════════════════════════════════════════════════════════════════════
+# ==============================================================================
 #  SECTION 7 - Recent Deployment Activity (Log Files)
-# ══════════════════════════════════════════════════════════════════════════════
+# ==============================================================================
 Write-Host "  [7/15] Recent Deployment Activity..." -ForegroundColor Gray
 $Sec7Html = ''
 try {
@@ -681,9 +681,9 @@ try {
     $Sec7Html = "<div class='info-box'>Error reading deployment logs: $($_.Exception.Message)</div>"
 }
 
-# ══════════════════════════════════════════════════════════════════════════════
+# ==============================================================================
 #  SECTION 8 - Pending Devices
-# ══════════════════════════════════════════════════════════════════════════════
+# ==============================================================================
 Write-Host "  [8/15] Pending Devices..." -ForegroundColor Gray
 $Sec8Html         = ''
 $PendingCount     = 0
@@ -718,9 +718,9 @@ try {
     $Sec8Html = "<div class='info-box'>Error retrieving pending devices: $($_.Exception.Message)</div>"
 }
 
-# ══════════════════════════════════════════════════════════════════════════════
+# ==============================================================================
 #  SECTION 9 - WDS DHCP Integration Check
-# ══════════════════════════════════════════════════════════════════════════════
+# ==============================================================================
 Write-Host "  [9/15] WDS DHCP Integration..." -ForegroundColor Gray
 $Sec9Html = ''
 try {
@@ -770,9 +770,9 @@ $(if ($dhcpStatus) { "<div class='info-box' style='margin-top:10px;border-left-c
     $Sec9Html = "<div class='info-box'>Error checking DHCP integration: $($_.Exception.Message)</div>"
 }
 
-# ══════════════════════════════════════════════════════════════════════════════
+# ==============================================================================
 #  SECTION 10 - Disk Space (RemoteInstall Volume)
-# ══════════════════════════════════════════════════════════════════════════════
+# ==============================================================================
 Write-Host "  [10/15] Disk Space..." -ForegroundColor Gray
 $Sec10Html = ''
 try {
@@ -829,9 +829,9 @@ try {
     $Sec10Html = "<div class='info-box'>Error retrieving disk space: $($_.Exception.Message)</div>"
 }
 
-# ══════════════════════════════════════════════════════════════════════════════
+# ==============================================================================
 #  SECTION 11 - WDS-related Services
-# ══════════════════════════════════════════════════════════════════════════════
+# ==============================================================================
 Write-Host "  [11/15] WDS-related Services..." -ForegroundColor Gray
 $Sec11Html = ''
 try {
@@ -869,9 +869,9 @@ try {
     $Sec11Html = "<div class='info-box'>Error checking WDS services: $($_.Exception.Message)</div>"
 }
 
-# ══════════════════════════════════════════════════════════════════════════════
+# ==============================================================================
 #  SECTION 12 - Active Directory Integration
-# ══════════════════════════════════════════════════════════════════════════════
+# ==============================================================================
 Write-Host "  [12/15] Active Directory Integration..." -ForegroundColor Gray
 $Sec12Html = ''
 try {
@@ -924,9 +924,9 @@ try {
     $Sec12Html = "<div class='info-box'>Error checking AD integration: $($_.Exception.Message)</div>"
 }
 
-# ══════════════════════════════════════════════════════════════════════════════
+# ==============================================================================
 #  SECTION 13 - Network Check (DC reachability)
-# ══════════════════════════════════════════════════════════════════════════════
+# ==============================================================================
 Write-Host "  [13/15] Network Check..." -ForegroundColor Gray
 $Sec13Html = ''
 try {
@@ -993,9 +993,9 @@ try {
     $Sec13Html = "<div class='info-box'>Error performing network check: $($_.Exception.Message)</div>"
 }
 
-# ══════════════════════════════════════════════════════════════════════════════
+# ==============================================================================
 #  SECTION 14 - WDS Event Log (last 20 events)
-# ══════════════════════════════════════════════════════════════════════════════
+# ==============================================================================
 Write-Host "  [14/15] WDS Event Log..." -ForegroundColor Gray
 $Sec14Html = ''
 try {
@@ -1043,9 +1043,9 @@ try {
     $Sec14Html = "<div class='info-box'>Error reading WDS event log: $($_.Exception.Message)</div>"
 }
 
-# ══════════════════════════════════════════════════════════════════════════════
+# ==============================================================================
 #  SECTION 15 - System Event Log (WDS/TFTP/BINL mentions)
-# ══════════════════════════════════════════════════════════════════════════════
+# ==============================================================================
 Write-Host "  [15/15] System Event Log..." -ForegroundColor Gray
 $Sec15Html = ''
 try {
@@ -1106,9 +1106,9 @@ try {
     $Sec15Html = "<div class='info-box'>Error reading System event log: $($_.Exception.Message)</div>"
 }
 
-# ══════════════════════════════════════════════════════════════════════════════
+# ==============================================================================
 #  SUMMARY TILES
-# ══════════════════════════════════════════════════════════════════════════════
+# ==============================================================================
 $isCritical     = $CriticalFindings.Count -gt 0
 $overallStatus  = if ($isCritical) { 'CRITICAL' } else { 'HEALTHY' }
 $overallColour  = if ($isCritical) { '#ef4444' } else { '#22c55e' }
@@ -1136,9 +1136,9 @@ $SummaryTiles = @"
 </div>
 "@
 
-# ══════════════════════════════════════════════════════════════════════════════
+# ==============================================================================
 #  CRITICAL FINDINGS SECTION
-# ══════════════════════════════════════════════════════════════════════════════
+# ==============================================================================
 $CritSection = ''
 if ($isCritical) {
     $cfRows = ($CriticalFindings | ForEach-Object { "<tr><td><span class='badge badge-red'>CRITICAL</span></td><td>$([System.Web.HttpUtility]::HtmlEncode($_))</td></tr>" }) -join ''
@@ -1157,9 +1157,9 @@ if ($isCritical) {
 "@
 }
 
-# ══════════════════════════════════════════════════════════════════════════════
+# ==============================================================================
 #  ASSEMBLE HTML
-# ══════════════════════════════════════════════════════════════════════════════
+# ==============================================================================
 $ScriptEnd  = Get-Date
 $Duration   = ($ScriptEnd - $ScriptStart).ToString('mm\:ss')
 
@@ -1207,9 +1207,9 @@ $HtmlBody += @"
 </html>
 "@
 
-# ══════════════════════════════════════════════════════════════════════════════
+# ==============================================================================
 #  WRITE REPORT
-# ══════════════════════════════════════════════════════════════════════════════
+# ==============================================================================
 try {
     [System.IO.File]::WriteAllText($ReportFile, $HtmlBody, [System.Text.Encoding]::UTF8)
     Write-Host ""
@@ -1218,9 +1218,9 @@ try {
     Write-Warning "Failed to write HTML report: $_"
 }
 
-# ══════════════════════════════════════════════════════════════════════════════
+# ==============================================================================
 #  STATUS SUMMARY FILE  (_HEALTHY.txt or _CRITICAL.txt)
-# ══════════════════════════════════════════════════════════════════════════════
+# ==============================================================================
 $statusSuffix = if ($isCritical) { '_CRITICAL' } else { '_HEALTHY' }
 $StatusFile   = Join-Path $ReportsDir ($ReportStamp + $statusSuffix + '.txt')
 

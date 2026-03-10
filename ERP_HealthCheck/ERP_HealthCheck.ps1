@@ -1,4 +1,4 @@
-﻿#Requires -Version 5.1
+#Requires -Version 5.1
 <#
 .SYNOPSIS
     Comprehensive ERP Server Health Check Script (ERP-Agnostic)
@@ -8,7 +8,7 @@
     exports the results to a single self-contained HTML dashboard file.
 
     Compatible with SAP, Oracle EBS, Microsoft Dynamics, or any Windows-hosted
-    ERP system.  Uses only Windows-native tools — no ERP-specific SDK required.
+    ERP system.  Uses only Windows-native tools - no ERP-specific SDK required.
 
     Checks performed:
       1.  Server Baseline          (hostname, OS, uptime, CPU, RAM, .NET versions)
@@ -18,7 +18,7 @@
       5.  Database Service & Connectivity (service state + SQL SELECT 1 test)
       6.  Database Details         (sizes, last backup date, recovery model)
       7.  IIS / Web Server         (app pools, site bindings, worker processes)
-      8.  Network Port Connectivity(ERPPort, DB port, ExtraPorts — Open/Closed)
+      8.  Network Port Connectivity(ERPPort, DB port, ExtraPorts - Open/Closed)
       9.  Windows Firewall         (profile state, rules allowing ERPPort)
       10. Scheduled Tasks          (ERP/backup/sync/job/batch tasks)
       11. Event Log Check          (last 24 h Critical/Error from App & System)
@@ -65,7 +65,7 @@ param(
     [int[]]    $ExtraPorts      = @()
 )
 
-# ── CONFIGURATION ─────────────────────────────────────────────────────────────
+# -- CONFIGURATION -------------------------------------------------------------
 $CompanyLogoURL = ''                         # URL/path to logo image. Leave blank to skip.
 $CompanyWebsite = 'https://tushargudde.tech' # Company website URL for logo hyperlink.
 $AuthorName     = 'Tushar Gudde'             # Author name shown in footer.
@@ -94,14 +94,14 @@ $TaskNamePattern  = 'ERP|backup|sync|job|batch|report|sap|oracle|dynamics'
 # Write a plain-text companion status file (_HEALTHY.txt / _CRITICAL.txt)
 # alongside every HTML report.  Required by ERP_HealthCheck_EmailAlert.ps1.
 $EnableStatusFile = $true
-# ──────────────────────────────────────────────────────────────────────────────
+# ------------------------------------------------------------------------------
 
 $ScriptVersion = '1.0.0'
 $StartTime     = Get-Date
 $ScriptDir     = Split-Path -Parent $MyInvocation.MyCommand.Definition
 if ([string]::IsNullOrEmpty($ScriptDir)) { $ScriptDir = $PWD.Path }
 
-# ── REPORTS FOLDER ────────────────────────────────────────────────────────────
+# -- REPORTS FOLDER ------------------------------------------------------------
 $ReportsDir = Join-Path $ScriptDir 'Reports'
 if (-not (Test-Path $ReportsDir)) {
     try { New-Item -ItemType Directory -Path $ReportsDir -Force | Out-Null }
@@ -110,7 +110,7 @@ if (-not (Test-Path $ReportsDir)) {
 $ReportStamp = "ERP_Health_{0}" -f (Get-Date -Format 'yyyyMMdd_HHmmss')
 $ReportFile  = Join-Path $ReportsDir ($ReportStamp + '.html')
 
-# ── HELPER FUNCTIONS ──────────────────────────────────────────────────────────
+# -- HELPER FUNCTIONS ----------------------------------------------------------
 function HtmlEncode {
     param([string]$text)
     if ([string]::IsNullOrEmpty($text)) { return '' }
@@ -193,10 +193,10 @@ function Test-TcpPort {
     }
 }
 
-# ── CRITICAL FINDINGS LIST ────────────────────────────────────────────────────
+# -- CRITICAL FINDINGS LIST ----------------------------------------------------
 $CriticalFindings = [System.Collections.Generic.List[string]]::new()
 
-# ── DEFAULT KPI VARIABLES (overridden in sections below) ─────────────────────
+# -- DEFAULT KPI VARIABLES (overridden in sections below) ---------------------
 $ServerHostname    = $env:COMPUTERNAME
 $UptimeStr         = 'Unknown'
 $CpuPct            = 0
@@ -216,9 +216,9 @@ Write-Host "|   ERP System: $ERPName" -ForegroundColor DarkGreen
 Write-Host "+==============================================================+" -ForegroundColor DarkGreen
 Write-Host ""
 
-# ═══════════════════════════════════════════════════════════════════════════════
-# SECTION 1 — SERVER BASELINE
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
+# SECTION 1 - SERVER BASELINE
+# ===============================================================================
 Write-Progress2 "Section 1: Server Baseline..."
 $Sec1Html = ''
 try {
@@ -296,9 +296,9 @@ try {
     $CriticalFindings.Add("Section 1 - Server baseline error: $($_.Exception.Message)")
 }
 
-# ═══════════════════════════════════════════════════════════════════════════════
-# SECTION 2 — CPU & MEMORY PERFORMANCE
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
+# SECTION 2 - CPU & MEMORY PERFORMANCE
+# ===============================================================================
 Write-Progress2 "Section 2: CPU & Memory Performance..."
 $Sec2Html = ''
 try {
@@ -376,9 +376,9 @@ try {
     $CriticalFindings.Add("Section 2 - CPU/Memory check error: $($_.Exception.Message)")
 }
 
-# ═══════════════════════════════════════════════════════════════════════════════
-# SECTION 3 — DISK HEALTH
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
+# SECTION 3 - DISK HEALTH
+# ===============================================================================
 Write-Progress2 "Section 3: Disk Health..."
 $Sec3Html     = ''
 $DiskInfo     = @()
@@ -452,9 +452,9 @@ try {
     $CriticalFindings.Add("Section 3 - Disk check error: $($_.Exception.Message)")
 }
 
-# ═══════════════════════════════════════════════════════════════════════════════
-# SECTION 4 — ERP APPLICATION SERVICES
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
+# SECTION 4 - ERP APPLICATION SERVICES
+# ===============================================================================
 Write-Progress2 "Section 4: ERP Application Services..."
 $Sec4Html       = ''
 $ServiceResults = [System.Collections.Generic.List[hashtable]]::new()
@@ -521,9 +521,9 @@ if ($ServiceResults.Count -eq 0) {
     $Sec4Html += "<p class='info' style='margin-top:8px;'>$ServiceOkCount of $ServiceTotalCount service(s) running.</p>"
 }
 
-# ═══════════════════════════════════════════════════════════════════════════════
-# SECTION 5 — DATABASE SERVICE & CONNECTIVITY
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
+# SECTION 5 - DATABASE SERVICE & CONNECTIVITY
+# ===============================================================================
 Write-Progress2 "Section 5: Database Service & Connectivity..."
 $Sec5Html = ''
 try {
@@ -542,7 +542,7 @@ try {
         $CriticalFindings.Add("Section 5 - Database service '$DBServiceName' not found")
     }
 
-    # SQL connectivity test (Windows Authentication) — only for MSSQL-type services
+    # SQL connectivity test (Windows Authentication) - only for MSSQL-type services
     $connBadge   = StatusBadge 'Not Tested' 'grey'
     $connNote    = 'SQL connectivity test skipped (service name does not match MSSQL).'
     $dbLatencyStr = 'N/A'
@@ -586,9 +586,9 @@ try {
     $CriticalFindings.Add("Section 5 - Database service check error: $($_.Exception.Message)")
 }
 
-# ═══════════════════════════════════════════════════════════════════════════════
-# SECTION 6 — DATABASE DETAILS
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
+# SECTION 6 - DATABASE DETAILS
+# ===============================================================================
 Write-Progress2 "Section 6: Database Details..."
 $Sec6Html = ''
 
@@ -601,7 +601,7 @@ if (-not $dbConnected) {
         $conn6    = New-Object System.Data.SqlClient.SqlConnection($connStr6)
         $conn6.Open()
 
-        # ── DB sizes ──────────────────────────────────────────────────────────
+        # -- DB sizes ----------------------------------------------------------
         $dbSizeHtml = ''
         try {
             $sqlSizes = "SELECT d.name AS DBName, " +
@@ -635,7 +635,7 @@ if (-not $dbConnected) {
             $dbSizeHtml = "<p class='error'>Error querying database sizes: $(HtmlEncode $_.Exception.Message)</p>"
         }
 
-        # ── Last full backup per DB ───────────────────────────────────────────
+        # -- Last full backup per DB -------------------------------------------
         $bakHtml = ''
         try {
             $sqlBak = "SELECT d.name AS DBName, " +
@@ -692,9 +692,9 @@ if (-not $dbConnected) {
     }
 }
 
-# ═══════════════════════════════════════════════════════════════════════════════
-# SECTION 7 — IIS / WEB SERVER
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
+# SECTION 7 - IIS / WEB SERVER
+# ===============================================================================
 Write-Progress2 "Section 7: IIS / Web Server..."
 $Sec7Html = ''
 try {
@@ -765,9 +765,9 @@ try {
     $CriticalFindings.Add("Section 7 - IIS check error: $($_.Exception.Message)")
 }
 
-# ═══════════════════════════════════════════════════════════════════════════════
-# SECTION 8 — NETWORK PORT CONNECTIVITY
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
+# SECTION 8 - NETWORK PORT CONNECTIVITY
+# ===============================================================================
 Write-Progress2 "Section 8: Network Port Connectivity..."
 $Sec8Html = ''
 try {
@@ -803,9 +803,9 @@ try {
     $CriticalFindings.Add("Section 8 - Port connectivity check error: $($_.Exception.Message)")
 }
 
-# ═══════════════════════════════════════════════════════════════════════════════
-# SECTION 9 — WINDOWS FIREWALL
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
+# SECTION 9 - WINDOWS FIREWALL
+# ===============================================================================
 Write-Progress2 "Section 9: Windows Firewall..."
 $Sec9Html = ''
 try {
@@ -857,9 +857,9 @@ try {
     $CriticalFindings.Add("Section 9 - Firewall check error: $($_.Exception.Message)")
 }
 
-# ═══════════════════════════════════════════════════════════════════════════════
-# SECTION 10 — SCHEDULED TASKS
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
+# SECTION 10 - SCHEDULED TASKS
+# ===============================================================================
 Write-Progress2 "Section 10: Scheduled Tasks..."
 $Sec10Html = ''
 try {
@@ -902,9 +902,9 @@ try {
     $CriticalFindings.Add("Section 10 - Scheduled task check error: $($_.Exception.Message)")
 }
 
-# ═══════════════════════════════════════════════════════════════════════════════
-# SECTION 11 — EVENT LOG CHECK
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
+# SECTION 11 - EVENT LOG CHECK
+# ===============================================================================
 Write-Progress2 "Section 11: Event Log Check (last 24 hours)..."
 $Sec11Html = ''
 try {
@@ -921,7 +921,7 @@ try {
             $logEvents = @(Get-WinEvent -FilterHashtable $filterHash -MaxEvents 50 -ErrorAction Stop)
             foreach ($ev in $logEvents) { $events.Add($ev) }
         } catch [System.Exception] {
-            # No matching events is normal — continue silently
+            # No matching events is normal - continue silently
             if ($_.Exception.Message -notmatch 'No events were found') {
                 $events.Add([PSCustomObject]@{
                     TimeCreated = (Get-Date)
@@ -972,9 +972,9 @@ try {
     $CriticalFindings.Add("Section 11 - Event log check error: $($_.Exception.Message)")
 }
 
-# ═══════════════════════════════════════════════════════════════════════════════
-# SECTION 12 — CERTIFICATE CHECK
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
+# SECTION 12 - CERTIFICATE CHECK
+# ===============================================================================
 Write-Progress2 "Section 12: Certificate Check..."
 $Sec12Html = ''
 try {
@@ -1040,9 +1040,9 @@ try {
     $CriticalFindings.Add("Section 12 - Certificate check error: $($_.Exception.Message)")
 }
 
-# ═══════════════════════════════════════════════════════════════════════════════
-# SECTION 13 — BACKUP VERIFICATION
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
+# SECTION 13 - BACKUP VERIFICATION
+# ===============================================================================
 Write-Progress2 "Section 13: Backup Verification..."
 $Sec13Html = ''
 try {
@@ -1097,9 +1097,9 @@ try {
     $CriticalFindings.Add("Section 13 - Backup verification error: $($_.Exception.Message)")
 }
 
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 # SUMMARY KPI VALUES
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 $CritCount  = $CriticalFindings.Count
 $ReportDate = (Get-Date).ToString('dddd, dd MMMM yyyy HH:mm:ss')
 $EndTime    = Get-Date
@@ -1152,9 +1152,9 @@ $AuthorLink = if (-not [string]::IsNullOrWhiteSpace($CompanyWebsite)) {
 
 Write-Progress2 "Building HTML report..."
 
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 # BUILD FULL HTML
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 $HtmlReport = @"
 <!DOCTYPE html>
 <html lang="en">
@@ -1163,7 +1163,7 @@ $HtmlReport = @"
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ERP Health Check - $(HtmlEncode $ERPName) - $(HtmlEncode $ServerHostname)</title>
 <style>
-/* ── CSS VARIABLES ── */
+/* -- CSS VARIABLES -- */
 :root {
   --bg:       #0d1117;
   --card:     #161b22;
@@ -1203,7 +1203,7 @@ a { color: var(--link); }
 code { font-family: Consolas,'SFMono-Regular',monospace; font-size: .85em;
        background: var(--th-bg); padding: 1px 5px; border-radius: 4px; }
 
-/* ── LAYOUT ── */
+/* -- LAYOUT -- */
 .page-wrap { max-width: 1280px; margin: 0 auto; padding: 0 20px 40px; }
 .header    { background: var(--head-bg); border-bottom: 1px solid var(--border);
              padding: 16px 24px; display: flex; align-items: center;
@@ -1218,7 +1218,7 @@ code { font-family: Consolas,'SFMono-Regular',monospace; font-size: .85em;
                 font-size: 12px; display: flex; align-items: center; gap: 6px; }
 .theme-toggle:hover { background: var(--th-bg); }
 
-/* ── SUMMARY BAR ── */
+/* -- SUMMARY BAR -- */
 .summary-bar { display: flex; flex-wrap: wrap; gap: 12px;
                background: var(--card); border: 1px solid var(--border);
                border-radius: 8px; padding: 16px 20px; margin: 20px 0; }
@@ -1231,7 +1231,7 @@ code { font-family: Consolas,'SFMono-Regular',monospace; font-size: .85em;
 .c-blue   { color: #58a6ff; }
 .c-muted  { color: var(--muted); }
 
-/* ── SECTION CARDS ── */
+/* -- SECTION CARDS -- */
 .section-card { background: var(--card); border: 1px solid var(--border);
                 border-radius: 8px; margin-bottom: 16px; overflow: hidden; }
 .section-summary { display: flex; align-items: center; gap: 10px; cursor: pointer;
@@ -1249,7 +1249,7 @@ details[open] > .section-summary .sec-arrow { transform: rotate(90deg); }
 .section-body { padding: 16px 18px; border-top: 1px solid var(--border); }
 h4 { font-size: .9rem; font-weight: 600; }
 
-/* ── TABLES ── */
+/* -- TABLES -- */
 .table-wrap { overflow-x: auto; border-radius: 6px; border: 1px solid var(--border); }
 table       { width: 100%; border-collapse: collapse; font-size: 13px; }
 thead tr    { background: var(--th-bg); position: sticky; top: 0; z-index: 1; }
@@ -1262,7 +1262,7 @@ tbody tr:hover { background: var(--th-bg); }
 .kv-table td { padding: 7px 12px; border-bottom: 1px solid var(--border); }
 .td-label   { font-weight: 600; white-space: nowrap; width: 200px; color: var(--muted); }
 
-/* ── DISK BARS ── */
+/* -- DISK BARS -- */
 .disk-container  { display: flex; flex-direction: column; gap: 14px; }
 .disk-row        { }
 .disk-label      { font-size: .85rem; margin-bottom: 4px; font-weight: 600; }
@@ -1271,33 +1271,33 @@ tbody tr:hover { background: var(--th-bg); }
 .disk-bar-inner  { height: 100%; border-radius: 9px; transition: width .4s ease; }
 .disk-stat       { font-size: .8rem; color: var(--muted); }
 
-/* ── EVENT ROW COLORS ── */
+/* -- EVENT ROW COLORS -- */
 .row-critical { background: rgba(218,54,51,.15) !important; }
 .row-error    { background: rgba(218,54,51,.08) !important; }
 .row-warning  { background: rgba(210,153,34,.12) !important; }
 
-/* ── BADGES ── */
+/* -- BADGES -- */
 .badge { display: inline-block; font-size: .7rem; font-weight: 600; padding: 2px 8px;
          border-radius: 20px; color: #fff; white-space: nowrap; }
 
-/* ── MESSAGE CLASSES ── */
+/* -- MESSAGE CLASSES -- */
 .error { color: #f85149; padding: 8px 12px; background: rgba(248,81,73,.1);
          border-left: 3px solid #f85149; border-radius: 4px; }
 .warn  { color: #d29922; padding: 8px 12px; background: rgba(210,153,34,.1);
          border-left: 3px solid #d29922; border-radius: 4px; }
 .info  { color: var(--muted); }
 
-/* ── FOOTER ── */
+/* -- FOOTER -- */
 .footer { border-top: 1px solid var(--border); padding: 20px 0;
           margin-top: 24px; color: var(--muted); font-size: .8rem;
           display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
 
-/* ── EVENT TABLE MESSAGE CELL ── */
+/* -- EVENT TABLE MESSAGE CELL -- */
 .event-table td:nth-child(5) {
   max-width: 360px; word-break: break-word; white-space: normal;
 }
 
-/* ── RESPONSIVE ── */
+/* -- RESPONSIVE -- */
 @media (max-width: 768px) {
   .summary-bar { gap: 8px; }
   .stat-card   { flex: 1 1 100px; }
@@ -1403,9 +1403,9 @@ function toggleTheme() {
 </html>
 "@
 
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 # WRITE HTML REPORT FILE
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 try {
     [System.IO.File]::WriteAllText($ReportFile, $HtmlReport, [System.Text.Encoding]::UTF8)
     Write-Host ""
@@ -1414,10 +1414,10 @@ try {
     Write-Warning "Failed to write report: $_"
 }
 
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 # STATUS SUMMARY FILE  (_HEALTHY.txt or _CRITICAL.txt)
 # Read by ERP_HealthCheck_EmailAlert.ps1 to trigger email notifications.
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 $isCritical   = $CriticalFindings.Count -gt 0
 $statusSuffix = if ($isCritical) { '_CRITICAL' } else { '_HEALTHY' }
 $StatusFile   = Join-Path $ReportsDir ($ReportStamp + $statusSuffix + '.txt')
@@ -1471,7 +1471,7 @@ if ($EnableStatusFile) {
     }
 }
 
-# ── CONSOLE SUMMARY ───────────────────────────────────────────────────────────
+# -- CONSOLE SUMMARY -----------------------------------------------------------
 Write-Host ""
 Write-Host "===============================================================" -ForegroundColor DarkGreen
 Write-Host "  ERP Health Check complete.  Duration: $Duration" -ForegroundColor DarkGreen

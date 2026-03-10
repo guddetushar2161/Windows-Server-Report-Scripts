@@ -1,4 +1,4 @@
-﻿#Requires -Version 5.1
+#Requires -Version 5.1
 <#
 .SYNOPSIS
     Email alert companion for AD_HealthCheck.ps1
@@ -46,7 +46,7 @@ param(
     [System.Management.Automation.PSCredential]$SmtpCredential = $null
 )
 
-# ── CONFIGURATION ─────────────────────────────────────────────────────────────
+# -- CONFIGURATION -------------------------------------------------------------
 # SMTP Settings
 $SmtpServer    = 'smtp.yourdomain.com'      # SMTP relay hostname or IP
 $SmtpPort      = 587                        # 587 (STARTTLS) | 465 (SSL) | 25 (plain)
@@ -58,7 +58,7 @@ $SmtpUseSsl    = $true                      # Enable TLS/SSL
 # only for automated/unattended scenarios where a secrets vault is not available.
 # SECURITY: Store secrets in Windows Credential Manager or a vault, not in plain text.
 $SmtpUsername  = ''                         # Used only when -SmtpCredential is NOT supplied
-$SmtpPassword  = ''                         # Plain-text fallback — avoid if possible
+$SmtpPassword  = ''                         # Plain-text fallback - avoid if possible
 
 # Email Addresses
 $FromAddress   = 'adhealth@yourdomain.com'  # Sender address shown in From: field
@@ -72,13 +72,13 @@ $AlertOnHealthy  = $false   # Send email even when status is HEALTHY (optional)
 # How many status files to process per run (0 = all, 1 = latest only, N = latest N)
 $MaxFilesToProcess = 1
 
-# ──────────────────────────────────────────────────────────────────────────────
+# ------------------------------------------------------------------------------
 
 $ScriptVersion = '1.0.0'
 $ScriptDir     = Split-Path -Parent $MyInvocation.MyCommand.Definition
 if ([string]::IsNullOrEmpty($ScriptDir)) { $ScriptDir = $PWD.Path }
 
-# ── HELPER FUNCTIONS ──────────────────────────────────────────────────────────
+# -- HELPER FUNCTIONS ----------------------------------------------------------
 function Write-Log {
     param([string]$Msg, [string]$Color = 'Cyan')
     Write-Host "  [$(Get-Date -Format 'HH:mm:ss')] $Msg" -ForegroundColor $Color
@@ -207,19 +207,19 @@ function Send-StatusEmail {
     }
 }
 
-# ── RESOLVE REPORTS FOLDER ────────────────────────────────────────────────────
+# -- RESOLVE REPORTS FOLDER ----------------------------------------------------
 if ([string]::IsNullOrWhiteSpace($ReportsFolder)) {
     $ReportsFolder = Join-Path $ScriptDir 'Reports'
 }
 
-# ── BANNER ────────────────────────────────────────────────────────────────────
+# -- BANNER --------------------------------------------------------------------
 Write-Host ""
 Write-Host "+==============================================================+" -ForegroundColor DarkCyan
 Write-Host "|   AD Health Check - Email Alert  v$ScriptVersion                   |" -ForegroundColor DarkCyan
 Write-Host "+==============================================================+" -ForegroundColor DarkCyan
 Write-Host ""
 
-# ── SINGLE-FILE MODE (when -StatusFile is provided) ──────────────────────────
+# -- SINGLE-FILE MODE (when -StatusFile is provided) --------------------------
 if (-not [string]::IsNullOrWhiteSpace($StatusFile)) {
     if (-not (Test-Path $StatusFile)) {
         Write-Warning "Status file not found: $StatusFile"
@@ -246,7 +246,7 @@ if (-not [string]::IsNullOrWhiteSpace($StatusFile)) {
     exit 0
 }
 
-# ── FOLDER SCAN MODE (default) ───────────────────────────────────────────────
+# -- FOLDER SCAN MODE (default) -----------------------------------------------
 if (-not (Test-Path $ReportsFolder)) {
     Write-Warning "Reports folder not found: $ReportsFolder"
     Write-Host "  Run AD_HealthCheck.ps1 first to generate report and status files." -ForegroundColor Yellow

@@ -1,4 +1,4 @@
-﻿#Requires -Version 5.1
+#Requires -Version 5.1
 <#
 .SYNOPSIS
     ADCS / PKI Health Check Script
@@ -39,7 +39,7 @@
     Companion  : ADCS_HealthCheck_EmailAlert.ps1
 #>
 
-# ── CONFIGURATION ─────────────────────────────────────────────────────────────
+# -- CONFIGURATION -------------------------------------------------------------
 $CompanyLogoURL = ''                         # URL/path to logo. Leave blank to skip.
 $CompanyWebsite = 'https://tushargudde.tech' # Company website URL for logo hyperlink.
 $AuthorName     = 'Tushar Gudde'             # Author name shown in the footer.
@@ -57,14 +57,14 @@ $UrlTestTimeout = 10
 
 # Write a plain-text companion status file alongside every HTML report.
 $EnableStatusFile = $true
-# ──────────────────────────────────────────────────────────────────────────────
+# ------------------------------------------------------------------------------
 
 $ScriptVersion = '1.0.0'
 $StartTime     = Get-Date
 $ScriptDir     = Split-Path -Parent $MyInvocation.MyCommand.Definition
 if ([string]::IsNullOrEmpty($ScriptDir)) { $ScriptDir = $PWD.Path }
 
-# ── REPORTS FOLDER ────────────────────────────────────────────────────────────
+# -- REPORTS FOLDER ------------------------------------------------------------
 $ReportsDir = Join-Path $ScriptDir 'Reports'
 if (-not (Test-Path $ReportsDir)) {
     try { New-Item -ItemType Directory -Path $ReportsDir -Force | Out-Null }
@@ -73,7 +73,7 @@ if (-not (Test-Path $ReportsDir)) {
 $ReportStamp = "ADC_Health_{0}" -f (Get-Date -Format 'yyyyMMdd_HHmmss')
 $ReportFile  = Join-Path $ReportsDir ($ReportStamp + '.html')
 
-# ── HELPER FUNCTIONS ──────────────────────────────────────────────────────────
+# -- HELPER FUNCTIONS ----------------------------------------------------------
 function HtmlEncode {
     param([string]$text)
     if ([string]::IsNullOrEmpty($text)) { return '' }
@@ -173,10 +173,10 @@ function Test-HttpUrl {
     }
 }
 
-# ── CRITICAL FINDINGS LIST ────────────────────────────────────────────────────
+# -- CRITICAL FINDINGS LIST ----------------------------------------------------
 $CriticalFindings = [System.Collections.Generic.List[string]]::new()
 
-# ── DEFAULT KPI VARIABLES ─────────────────────────────────────────────────────
+# -- DEFAULT KPI VARIABLES -----------------------------------------------------
 $ServerHostname   = $env:COMPUTERNAME
 $CAName           = 'Unknown'
 $CACertDaysLeft   = -1
@@ -191,7 +191,7 @@ Write-Host "|   Server: $($env:COMPUTERNAME)" -ForegroundColor DarkRed
 Write-Host "+==============================================================+" -ForegroundColor DarkRed
 Write-Host ""
 
-# ── DETECT WHETHER ADCS IS INSTALLED ─────────────────────────────────────────
+# -- DETECT WHETHER ADCS IS INSTALLED -----------------------------------------
 Write-Progress2 "Detecting ADCS installation..."
 try {
     $certSvc = Get-Service -Name CertSvc -ErrorAction Stop
@@ -203,7 +203,7 @@ try {
     $CriticalFindings.Add("ADCS (CertSvc) service not found  -  certificate authority is not installed or has been removed")
 }
 
-# ── READ CA REGISTRY CONFIG ───────────────────────────────────────────────────
+# -- READ CA REGISTRY CONFIG ---------------------------------------------------
 $CARegBase   = 'HKLM:\SYSTEM\CurrentControlSet\Services\CertSvc\Configuration'
 $CANamesList = @()
 try {
@@ -213,9 +213,9 @@ try {
     }
 } catch {}
 
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 # SECTION 0  -  SERVER DETAILS  (host running the script)
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 Write-Progress2 "Section 0: Gathering Server Details..."
 $Sec0Html = ''
 try {
@@ -255,9 +255,9 @@ try {
     $Sec0Html = "<p class='error'>Error retrieving Server Details: $(HtmlEncode $_.Exception.Message)</p>"
 }
 
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 # SECTION 1  -  CA IDENTITY & CONFIG
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 Write-Progress2 "Section 1: CA Identity & Config..."
 $Sec1Html = ''
 if (-not $IsADCSInstalled) {
@@ -346,9 +346,9 @@ if (-not $IsADCSInstalled) {
     }
 }
 
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 # SECTION 2  -  ADCS SERVICES STATUS
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 Write-Progress2 "Section 2: ADCS Services Status..."
 $Sec2Html = ''
 try {
@@ -386,9 +386,9 @@ try {
     $CriticalFindings.Add("Section 2 - ADCS services check error: $($_.Exception.Message)")
 }
 
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 # SECTION 3  -  CA CERTIFICATE VALIDITY
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 Write-Progress2 "Section 3: CA Certificate Validity..."
 $Sec3Html = ''
 try {
@@ -447,9 +447,9 @@ try {
     $CriticalFindings.Add("Section 3 - CA certificate validity error: $($_.Exception.Message)")
 }
 
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 # SECTION 4  -  CRL HEALTH
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 Write-Progress2 "Section 4: CRL Health..."
 $Sec4Html = ''
 $CRLDaysLeft = -1
@@ -555,9 +555,9 @@ try {
     $CriticalFindings.Add("Section 4 - CRL health error: $($_.Exception.Message)")
 }
 
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 # SECTION 5  -  CRL DISTRIBUTION POINTS (CDP)
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 Write-Progress2 "Section 5: CRL Distribution Points..."
 $Sec5Html = ''
 try {
@@ -620,9 +620,9 @@ try {
     $CriticalFindings.Add("Section 5 - CDP check error: $($_.Exception.Message)")
 }
 
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 # SECTION 6  -  OCSP STATUS
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 Write-Progress2 "Section 6: OCSP Status..."
 $Sec6Html = ''
 try {
@@ -686,9 +686,9 @@ try {
     $CriticalFindings.Add("Section 6 - OCSP check error: $($_.Exception.Message)")
 }
 
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 # SECTION 7  -  ISSUED CERTIFICATES SUMMARY
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 Write-Progress2 "Section 7: Issued Certificates Summary..."
 $Sec7Html = ''
 try {
@@ -792,9 +792,9 @@ try {
     $CriticalFindings.Add("Section 7 - Issued certificate summary error: $($_.Exception.Message)")
 }
 
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 # SECTION 8  -  CERTIFICATE TEMPLATES
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 Write-Progress2 "Section 8: Certificate Templates..."
 $Sec8Html = ''
 try {
@@ -830,9 +830,9 @@ try {
     $CriticalFindings.Add("Section 8 - Certificate templates error: $($_.Exception.Message)")
 }
 
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 # SECTION 9  -  AIA (AUTHORITY INFORMATION ACCESS) URLS
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 Write-Progress2 "Section 9: AIA URLs..."
 $Sec9Html = ''
 try {
@@ -892,9 +892,9 @@ try {
     $CriticalFindings.Add("Section 9 - AIA check error: $($_.Exception.Message)")
 }
 
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 # SECTION 10  -  CA DATABASE SIZE
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 Write-Progress2 "Section 10: CA Database Size..."
 $Sec10Html = ''
 try {
@@ -943,9 +943,9 @@ try {
     $CriticalFindings.Add("Section 10 - CA database check error: $($_.Exception.Message)")
 }
 
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 # SECTION 11  -  FAILED REQUESTS (LAST 7 DAYS)
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 Write-Progress2 "Section 11: Failed Requests (last 7 days)..."
 $Sec11Html = ''
 try {
@@ -998,9 +998,9 @@ try {
     $CriticalFindings.Add("Section 11 - Failed requests check error: $($_.Exception.Message)")
 }
 
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 # SECTION 12  -  CA EVENT LOGS
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 Write-Progress2 "Section 12: CA Event Logs..."
 $Sec12Html = ''
 try {
@@ -1054,9 +1054,9 @@ try {
     $CriticalFindings.Add("Section 12 - CA event log error: $($_.Exception.Message)")
 }
 
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 # SECTION 13  -  ENROLLMENT AGENT & KEY RECOVERY AGENT
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 Write-Progress2 "Section 13: Enrollment Agent / KRA..."
 $Sec13Html = ''
 try {
@@ -1111,9 +1111,9 @@ try {
     $CriticalFindings.Add("Section 13 - KRA/EA check error: $($_.Exception.Message)")
 }
 
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 # SECTION 14  -  HSM / KEY STORAGE
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 Write-Progress2 "Section 14: HSM / Key Storage..."
 $Sec14Html = ''
 try {
@@ -1160,9 +1160,9 @@ try {
     $CriticalFindings.Add("Section 14 - HSM/Key storage check error: $($_.Exception.Message)")
 }
 
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 # KPI TILES & FINAL ASSEMBLY
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 $CritCount  = $CriticalFindings.Count
 $ReportDate = (Get-Date).ToString('dddd, dd MMMM yyyy HH:mm:ss')
 $EndTime    = Get-Date
@@ -1218,9 +1218,9 @@ $AuthorLink = if (-not [string]::IsNullOrWhiteSpace($CompanyWebsite)) {
 
 Write-Progress2 "Building HTML report..."
 
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 # FULL HTML
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 $HtmlReport = @"
 <!DOCTYPE html>
 <html lang="en">
@@ -1428,9 +1428,9 @@ function toggleTheme() {
 </html>
 "@
 
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 # WRITE HTML REPORT
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 try {
     [System.IO.File]::WriteAllText($ReportFile, $HtmlReport, [System.Text.Encoding]::UTF8)
     Write-Host ""
@@ -1439,9 +1439,9 @@ try {
     Write-Warning "Failed to write report: $_"
 }
 
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 # STATUS SUMMARY FILE  (_HEALTHY.txt or _CRITICAL.txt)
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 $isCritical   = $CriticalFindings.Count -gt 0
 $statusSuffix = if ($isCritical) { '_CRITICAL' } else { '_HEALTHY' }
 $StatusFile   = Join-Path $ReportsDir ($ReportStamp + $statusSuffix + '.txt')
@@ -1494,7 +1494,7 @@ if ($EnableStatusFile) {
     }
 }
 
-# ── CONSOLE SUMMARY ───────────────────────────────────────────────────────────
+# -- CONSOLE SUMMARY -----------------------------------------------------------
 Write-Host ""
 Write-Host "===============================================================" -ForegroundColor DarkRed
 Write-Host "  ADCS PKI Health Check complete.  Duration: $Duration" -ForegroundColor DarkRed
