@@ -41,10 +41,11 @@
     A PSCredential for SMTP authentication.
 
 .NOTES
-    Version    : 1.0.0
+    Version    : 2.0.0
     Author     : Tushar Gudde
     Requires   : PowerShell 5.1+, SMTP relay accessible from this server
     Companion  : DHCP_DNS_HealthCheck.ps1  (set $EnableStatusFile = $true)
+    Change Summary: HTML report attachment added to critical alert emails; version updated to 2.0.0.
 #>
 
 param(
@@ -75,7 +76,7 @@ $MaxFilesToProcess = 1
 
 # ════════════════════════════════════════════════════════════════════════════════
 
-$ScriptVersion = '1.0.0'
+$ScriptVersion = '2.0.0'
 $ScriptDir     = Split-Path -Parent $MyInvocation.MyCommand.Definition
 if ([string]::IsNullOrEmpty($ScriptDir)) { $ScriptDir = $PWD.Path }
 
@@ -169,7 +170,7 @@ function Build-EmailSubject {
 }
 
 function Send-Email {
-    param([string]$Subject, [string]$HtmlBody)
+    param([string]$Subject, [string]$HtmlBody, [string[]]$Attachments = @())
     $mailParams = @{
         SmtpServer  = $SmtpServer
         Port        = $SmtpPort
@@ -182,6 +183,7 @@ function Send-Email {
         ErrorAction = 'Stop'
     }
     if ($CcAddresses.Count -gt 0) { $mailParams['Cc'] = $CcAddresses }
+    if ($Attachments.Count -gt 0) { $mailParams['Attachments'] = $Attachments }
     $cred = Resolve-SmtpCredential
     if ($null -ne $cred) { $mailParams['Credential'] = $cred }
     Send-MailMessage @mailParams
@@ -193,8 +195,20 @@ function Send-StatusEmail {
     $subjectTag  = if ($isCritical) { '*** CRITICAL ALERT ***' } else { 'Healthy State' }
     $subject     = Build-EmailSubject -Tag $subjectTag
     $htmlBody    = Build-HtmlEmail -StatusContent $FileContent -IsCritical $isCritical
+
+    # Derive the companion HTML report path from the status file name
+    # e.g. DHCP_DNS_Health_20260309_123456_CRITICAL.txt -> DHCP_DNS_Health_20260309_123456.html
+    $attachments = @()
+    $reportPath  = $FilePath -replace '_(CRITICAL|HEALTHY)\.txt$', '.html'
+    if (Test-Path $reportPath) {
+        $attachments = @($reportPath)
+        Write-Log "HTML report found — will attach: $(Split-Path $reportPath -Leaf)" 'Cyan'
+    } else {
+        Write-Log "HTML report not found at '$reportPath' — sending without attachment." 'Yellow'
+    }
+
     try {
-        Send-Email -Subject $subject -HtmlBody $htmlBody
+        Send-Email -Subject $subject -HtmlBody $htmlBody -Attachments $attachments
         $color = if ($isCritical) { 'Red' } else { 'Green' }
         Write-Log "[OK] Email sent  -  Subject: $subject" $color
     } catch {

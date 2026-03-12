@@ -32,10 +32,11 @@
     next to this script.
 
 .NOTES
-    Version    : 1.0.0
+    Version    : 2.0.0
     Author     : Tushar Gudde
     Requires   : PowerShell 5.1+, SMTP relay accessible from this server
     Permissions: Network access to SMTP relay
+    Change Summary: HTML report attachment added to critical alert emails; version updated to 2.0.0.
 #>
 
 param(
@@ -74,7 +75,7 @@ $MaxFilesToProcess = 1
 
 # ──────────────────────────────────────────────────────────────────────────────
 
-$ScriptVersion = '1.0.0'
+$ScriptVersion = '2.0.0'
 $ScriptDir     = Split-Path -Parent $MyInvocation.MyCommand.Definition
 if ([string]::IsNullOrEmpty($ScriptDir)) { $ScriptDir = $PWD.Path }
 
@@ -172,6 +173,17 @@ function Send-StatusEmail {
     $subject     = "AD Health Check - $subjectTag - $(Get-Date -Format 'yyyy-MM-dd HH:mm')"
     $htmlBody    = Build-HtmlEmail -StatusContent $FileContent -IsCritical $isCritical
 
+    # Derive the companion HTML report path from the status file name
+    # e.g. AD_Health_20260308_181050_CRITICAL.txt -> AD_Health_20260308_181050.html
+    $attachments = @()
+    $reportPath  = $FilePath -replace '_(CRITICAL|HEALTHY)\.txt$', '.html'
+    if (Test-Path $reportPath) {
+        $attachments = @($reportPath)
+        Write-Log "HTML report found — will attach: $(Split-Path $reportPath -Leaf)" 'Cyan'
+    } else {
+        Write-Log "HTML report not found at '$reportPath' — sending without attachment." 'Yellow'
+    }
+
     try {
         $mailParams = @{
             SmtpServer  = $SmtpServer
@@ -187,6 +199,10 @@ function Send-StatusEmail {
 
         if ($CcAddresses.Count -gt 0) {
             $mailParams['Cc'] = $CcAddresses
+        }
+
+        if ($attachments.Count -gt 0) {
+            $mailParams['Attachments'] = $attachments
         }
 
         # Resolve credentials: prefer -SmtpCredential param; fall back to plain-text config vars.
