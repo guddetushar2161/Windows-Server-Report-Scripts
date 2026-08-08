@@ -7,59 +7,72 @@ A collection of PowerShell scripts that perform comprehensive health checks for 
 ```
 Windows-Server-Reports-scripts/
 │
+├── Start-HealthCheckMenu.cmd             # Interactive master menu launcher (Start Here!)
+├── MasterMenu.ps1                        # Master menu PowerShell UI
+├── .github/workflows/psscriptanalyzer.yml# CI/CD pipeline for code linting
+│
 ├── AD_HealthCheck/
 │   ├── Reports/                          # Auto-created; stores generated .html and .txt reports
 │   ├── AD_HealthCheck.ps1                # Main health-check script
 │   ├── AD_HealthCheck_EmailAlert.ps1     # Email alert companion
-│   └── Run_AD_HealthCheck.ps1            # Launcher (double-click or Task Scheduler)
+│   ├── Run_AD_HealthCheck.ps1            # Launcher (Task Scheduler)
+│   └── Run_AD_HealthCheck.cmd            # CMD Wrapper (Bypasses execution policy)
 │
 ├── ADCS_HealthCheck/
 │   ├── Reports/
 │   ├── ADCS_HealthCheck.ps1
 │   ├── ADCS_HealthCheck_EmailAlert.ps1
-│   └── Run_ADCS_HealthCheck.ps1
+│   ├── Run_ADCS_HealthCheck.ps1
+│   └── Run_ADCS_HealthCheck.cmd
 │
 ├── DHCP_DNS_HealthCheck/
 │   ├── Reports/
 │   ├── DHCP_DNS_HealthCheck.ps1
 │   ├── DHCP_DNS_HealthCheck_EmailAlert.ps1
-│   └── Run_DHCP_DNS_HealthCheck.ps1
+│   ├── Run_DHCP_DNS_HealthCheck.ps1
+│   └── Run_DHCP_DNS_HealthCheck.cmd
 │
 ├── ERP_HealthCheck/
 │   ├── Reports/
 │   ├── ERP_HealthCheck.ps1
 │   ├── ERP_HealthCheck_EmailAlert.ps1
-│   └── Run_ERP_HealthCheck.ps1
+│   ├── Run_ERP_HealthCheck.ps1
+│   └── Run_ERP_HealthCheck.cmd
 │
 ├── Server_HealthCheck/
 │   ├── Reports/
 │   ├── Server_HealthCheck.ps1
 │   ├── Server_HealthCheck_EmailAlert.ps1
-│   └── Run_Server_HealthCheck.ps1
+│   ├── Run_Server_HealthCheck.ps1
+│   └── Run_Server_HealthCheck.cmd
 │
 ├── WDS_HealthCheck/
 │   ├── Reports/
 │   ├── WDS_HealthCheck.ps1
 │   ├── WDS_HealthCheck_EmailAlert.ps1
-│   └── Run_WDS_HealthCheck.ps1
+│   ├── Run_WDS_HealthCheck.ps1
+│   └── Run_WDS_HealthCheck.cmd
 │
 └── WSUS_HealthCheck/
     ├── Reports/
     ├── WSUS_HealthCheck.ps1
     ├── WSUS_HealthCheck_EmailAlert.ps1
-    └── Run_WSUS_HealthCheck.ps1
+    ├── Run_WSUS_HealthCheck.ps1
+    └── Run_WSUS_HealthCheck.cmd
 ```
 
 > **Note:** The `Reports/` folder inside each subfolder is automatically created on the first run of the health-check script. You do not need to create it manually.
 
 ## Features
 
+- **Interactive Master Menu** — Launch any health check from a single, beautiful terminal dashboard (`Start-HealthCheckMenu.cmd`)
+- **Air-Gapped Ready** — Fully self-contained HTML output and native CMD wrappers that bypass Execution Policy restrictions without internet.
 - **Multiple Role Coverage** — AD, ADCS, DHCP/DNS, ERP, Server baseline, WDS, and WSUS
 - **Dark/Light Mode Toggle** — switch themes with one click in any report
 - **Email Alerts** for critical findings (configurable SMTP per script)
 - **Event Log Analysis** with human-readable suggestions and impact ratings
 - **Reports Folder** — all HTML reports saved to a dedicated `Reports\` subfolder inside each script directory
-- **Zero External Dependencies** — fully self-contained HTML output
+- **CI/CD Integration** — Includes GitHub Actions workflows for automated PowerShell linting.
 
 ## Prerequisites
 
@@ -72,20 +85,16 @@ Windows-Server-Reports-scripts/
 
 ## Quick Start
 
-```powershell
-# 1. Open PowerShell as Administrator
-# 2. Navigate to the desired script subfolder, e.g.:
+**Option 1: The Interactive Master Menu (Recommended)**
+Simply double-click **`Start-HealthCheckMenu.cmd`** in the root directory to open the interactive dashboard and choose which server role you want to audit.
+
+**Option 2: Individual Wrappers**
+If you want to run a specific check without the menu, navigate to its folder and double-click the `.cmd` wrapper:
+```cmd
 cd "C:\Path\To\Windows-Server-Reports-scripts\AD_HealthCheck"
-
-# Option A – run directly
-.\AD_HealthCheck.ps1
-
-# Option B – use the launcher (works from Task Scheduler or Explorer double-click)
-.\Run_AD_HealthCheck.ps1
-
-# 3. Open the report
-# Reports are saved to: .\Reports\AD_Health_YYYYMMDD_HHmmss.html
+Run_AD_HealthCheck.cmd
 ```
+*Note: The `.cmd` wrappers automatically bypass PowerShell Execution Policy restrictions, making them perfect for locked-down environments.*
 
 ## Configuration Variables
 
