@@ -61,7 +61,7 @@ while ($true) {
             Run-Check "WDS_HealthCheck\WDS_HealthCheck.ps1" "WDS Health Check"
             Run-Check "WSUS_HealthCheck\WSUS_HealthCheck.ps1" "WSUS Health Check"
         }
-        'Q' { Write-Host "`nExiting..." -ForegroundColor Yellow; break }
+        'Q' { Write-Host "`nExiting..." -ForegroundColor Yellow; exit }
         default { Write-Host "`nInvalid selection. Please try again." -ForegroundColor Red; Start-Sleep -Seconds 1 }
     }
     
